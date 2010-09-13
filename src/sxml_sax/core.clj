@@ -19,12 +19,6 @@
             URI of elements and attributes." }
   *xmlns* {})
 
-(defn- all-of
-  "Takes a variable number of predicates and returns a predicate P which will
-  only be true when all of the predicates applied to P's arguments are true."
-  [& preds]
-  (fn [& x] (every? #(apply % x) preds)))
-
 (defn- any-of
   "Takes a variable number of predicates and returns a predicate P which will
   be true if at least one of the predicates applied to P's arguments is true."
