@@ -105,7 +105,7 @@
   them. The function must also know the tag's namespace prefix, so that
   unqualified attributes will be assigned to the correct namespace URI."
   [tag-prefix attr-map]
-  (binding [*xmlns* (merge *xmlns* {nil (*xmlns* tag-prefix)})]
+  (binding [*xmlns* (assoc *xmlns* nil (*xmlns* tag-prefix))]
     (let [attrs (AttributesImpl.)]
       (doseq [[attr-kw attr-val] attr-map]
         (let [[q l u _] (qualify-name attr-kw)]
