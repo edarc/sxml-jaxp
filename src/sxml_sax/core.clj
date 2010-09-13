@@ -175,7 +175,7 @@
         form            (normalize form)
         not-recognized!
         #(throw (SAXNotRecognizedException.
-                  "ClojAXS source has no features or properties."))]
+                  "SXML-SAX source has no such feature or property."))]
     (reify
       XMLReader
       (getContentHandler [_] @content-handler)
