@@ -34,9 +34,10 @@
   (cond
     (vector? form)
     (vec (let [[tag maybe-attrs & tail] form]
-           (if (map? maybe-attrs)
-             (concat [tag maybe-attrs] (map normalize tail))
-             (concat [tag {}] (map normalize (conj tail maybe-attrs))))))
+           (cond
+             (map? maybe-attrs) (concat [tag maybe-attrs] (map normalize tail))
+             (nil? maybe-attrs) [tag {}]
+             :else (concat [tag {}] (map normalize (conj tail maybe-attrs))))))
     (keyword? form) [form {}]
     :else form))
 
