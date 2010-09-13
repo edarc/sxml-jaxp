@@ -61,6 +61,13 @@
        :arglists '([form])}
   simplify (comp simplify* normalize))
 
+(defn- attr-is-xmlns
+  "Predicate which returns true if the given keyword (corresponding to an
+  attribute name) is an XML namespace declaration."
+  [kw]
+  (or (= :xmlns kw)
+      (.startsWith (name kw) "xmlns:")))
+
 (defn- qualify-name
   "Accepts a keyword representing a tag or attribute name, and returns [qname
   lname uri], where qname is the qualified name, lname is the local name, and
@@ -85,13 +92,6 @@
         xmlns    (into {} (for [[k v] *xmlns*] [(xmlnsify k) v]))
         [root-tag attrs & content] form]
     (concat [root-tag] [(merge xmlns attrs)] content)))
-
-(defn- attr-is-xmlns
-  "Predicate which returns true if the given keyword (corresponding to an
-  attribute name) is an XML namespace declaration."
-  [kw]
-  (or (= :xmlns kw)
-      (.startsWith (name kw) "xmlns:")))
 
 (defn- de-xmlnsify
   "Accepts a keyword corresponding to an xmlns attribute and returns a keyword
