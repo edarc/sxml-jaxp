@@ -106,7 +106,7 @@
   (when-not (= kw :xmlns)
     (keyword (.substring (name kw) 6))))
 
-(defn- mk-sax-attributes
+(defn- make-sax-attributes
   "Given an SXML attribute map, produce a SAX Attributes instance representing
   them. The function must also know the tag's namespace prefix, so that
   unqualified attributes will be assigned to the correct namespace URI."
@@ -133,7 +133,7 @@
         (let [[q l u tag-prefix] (qualify-name tag)]
           (doseq [[m _] xmlns-decls] (.startPrefixMapping
                                        ch (if m (name m) "") (*xmlns* m)))
-          (.startElement ch u l q (mk-sax-attributes tag-prefix attrs))
+          (.startElement ch u l q (make-sax-attributes tag-prefix attrs))
           (doseq [child children] (fire-events* child ch))
           (.endElement ch u l q)
           (doseq [[m _] xmlns-decls]
