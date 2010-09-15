@@ -118,37 +118,66 @@
           (.addAttribute attrs u l q "CDATA" attr-val)))
       attrs)))
 
-(defn- fire-events*
-  "Given an SXML form and SAX ContentHandler, walk the form firing events on
-  the ContentHandler corresponding to the XML that the given form represents.
-  This only fires events appropriate for non-root elements, so that it may call
-  itself recursively."
-  [form ch]
+(defn- sax-event-seq*
+  "Given an SXML form, produce a sequence of events corresponding to the SAX
+  events that represent the corresponding XML."
+  [form]
   (cond
     ((any-of vector? seq?) form)
     (let [[tag attrs & children] form
           xmlns-decls (into {} (for [k (filter attr-is-xmlns (keys attrs))]
                                  [(de-xmlnsify k) (attrs k)]))]
       (binding [*xmlns* (merge *xmlns* xmlns-decls)]
-        (let [[q l u tag-prefix] (qualify-name tag)]
-          (doseq [[m _] xmlns-decls] (.startPrefixMapping
-                                       ch (if m (name m) "") (*xmlns* m)))
-          (.startElement ch u l q (make-sax-attributes tag-prefix attrs))
-          (doseq [child children] (fire-events* child ch))
-          (.endElement ch u l q)
-          (doseq [[m _] xmlns-decls]
-            (.endPrefixMapping ch (if m (name m) ""))))))
-    (string? form) (.characters ch (char-array form) 0 (.length form))
-    :else (recur (str form) ch)))
+        (let [xmlns *xmlns*]
+          (concat
+            (for [[m _] xmlns-decls] [:start-prefix m (xmlns m)])
+            [[:start-element tag attrs]]
+            (apply concat (for [child children] (sax-event-seq* child)))
+            [[:end-element tag]]
+            (for [[m _] xmlns-decls] [:end-prefix m])))))
+    (string? form) [[:text-node form]]
+    :else (recur (str form))))
 
-(defn- fire-events
+(def ^{:doc "Given an SXML form, produce a sequence of events corresponding to
+            the SAX events that represent the corresponding XML."
+       :arglists '([form])}
+  sax-event-seq (comp sax-event-seq* normalize))
+
+(defn- fire-events*
+  "Given a SAX event seq and a SAX ContentHandler, iterate through the events,
+  firing the appropriate handler methods. This does not fire start and end
+  document events."
+  [event-seq ch]
+  (doseq [[ev & params] event-seq]
+    (case ev
+      :start-prefix
+      (let [[prefix uri] params
+            prefix (if prefix (name prefix) "")]
+        (.startPrefixMapping ch prefix uri))
+      :start-element
+      (let [[tag attrs] params
+            [q l u tag-prefix] (qualify-name tag)]
+        (.startElement ch u l q (make-sax-attributes tag-prefix attrs)))
+      :text-node
+      (let [text (first params)]
+        (.characters ch (char-array text) 0 (.length text)))
+      :end-element
+      (let [tag (first params)
+            [q l u _] (qualify-name tag)]
+        (.endElement ch u l q))
+      :end-prefix
+      (let [prefix (first params)
+            prefix (if prefix (name prefix) "")]
+        (.endPrefixMapping ch prefix)))))
+
+(defn fire-events
   "Applies default namespace declarations, fires events appropriate for the
   root element of the given SXML form, then hands off to 'fire-events* to
   generate all other SAX events."
   [form ch]
   (.startDocument ch)
   (binding [*xmlns* *default-xmlns*]
-    (fire-events* (apply-namespaces form) ch))
+    (fire-events* (sax-event-seq (apply-namespaces form)) ch))
   (.endDocument ch))
 
 (defn sax-reader
@@ -173,7 +202,6 @@
         entity-resolver (atom nil)
         dtd-handler     (atom nil)
         err-handler     (atom nil)
-        form            (normalize form)
         not-recognized!
         #(throw (SAXNotRecognizedException.
                   "SXML-SAX source has no such feature or property."))
