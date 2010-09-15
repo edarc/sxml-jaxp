@@ -114,3 +114,91 @@
           [:end-element :root]
           [:end-prefix :foo]])
       "namespace declaration"))
+
+(deftest shift-reduce "SXML shift-reduce parser"
+  (is (= "foo"
+         (-> ()
+           (push-text "foo")
+           first))
+      "non-markup")
+  (is (= (normalize :t)
+         (-> ()
+           (push-element :t {})
+           (reduce-element :t)
+           first))
+      "emtpy root element")
+  (is (= (normalize [:root :inner])
+         (-> ()
+           (push-element :root {})
+           (push-element :inner {})
+           (reduce-element :inner)
+           (reduce-element :root)
+           first))
+      "single nested element")
+  (is (= (normalize [:root :bob [:alice :eve] :mallory])
+         (-> ()
+           (push-element :root {})
+           (push-element :bob {})
+           (reduce-element :bob)
+           (push-element :alice {})
+           (push-element :eve {})
+           (reduce-element :eve)
+           (reduce-element :alice)
+           (push-element :mallory {})
+           (reduce-element :mallory)
+           (reduce-element :root)
+           first))
+      "multiple nested elements")
+  (is (= (normalize [:root {:foo "bar"}])
+         (-> ()
+           (push-element :root {:foo "bar"})
+           (reduce-element :root)
+           first))
+      "empty element with attributes")
+  (is (= (normalize [:root [:bob {:foo "bar"}]])
+         (-> ()
+           (push-element :root {})
+           (push-element :bob {:foo "bar"})
+           (reduce-element :bob)
+           (reduce-element :root)
+           first))
+      "nested element with attributes")
+  (is (= (normalize [:root "foo"])
+         (-> ()
+           (push-element :root {})
+           (push-text "foo")
+           (reduce-element :root)
+           first))
+      "nested text node")
+  (is (= (normalize [:root {:xmlns:foo "foo"}])
+         (-> ()
+           (push-prefix :foo "foo")
+           (push-element :root {})
+           (reduce-element :root)
+           first))
+      "namespace declaration"))
+
+(defn sax-roundtrip
+  [form]
+  (let [[result handler] (sax-handler)
+        reader           (sax-reader form)]
+    (doto reader
+      (.setContentHandler handler)
+      (.parse nil))
+    @result))
+
+(deftest sxml-sax-roundtrip "SXML->SAX->SXML roundtrip is lossless"
+  (are [form] (= (normalize form) (sax-roundtrip form))
+    :t
+    [:root :inner]
+    [:root :bob [:alice :eve] :mallory]
+    [:root {:foo "bar"}]
+    [:root [:bob {:foo "bar"}]]
+    [:root "foo"]
+    [:root {:xmlns:foo "foo"}]
+    [:root
+     [:bob "hello bob"]
+     "and then"
+     [:alice {:type "hello"} "hello alice and" :eve]
+     :finally
+     [:mallory "hello mallory"]]))

@@ -1,9 +1,10 @@
 (ns sxml-sax.core
   "Tools for using SXML-inspired XML representations with SAX2."
   (:import
-    (org.xml.sax SAXNotRecognizedException XMLReader InputSource)
+    (org.xml.sax SAXNotRecognizedException XMLReader InputSource
+                 ContentHandler)
     (org.xml.sax.helpers AttributesImpl)
-    (javax.xml.transform.sax SAXSource)))
+    (javax.xml.transform.sax SAXSource SAXResult)))
 
 (def ^{:doc "The default map of XML namespace prefixes. This is referenced when
             SAX events are generated to resolve namespace prefixes that are not
@@ -240,3 +241,90 @@
   [form]
   (let [reader (sax-reader form)]
     (SAXSource. reader (InputSource. ""))))
+
+(defn push-text
+  "Push a text node onto an SXML parser stack."
+  [stack text]
+  (conj stack text))
+
+(defn push-prefix
+  "Push a an XML namespace prefix declaration onto an SXML parser stack. All
+  such prefix declarations are inserted onto the element immediately following
+  when the element is reduced."
+  [stack prefix uri]
+  (conj stack [::start-prefix prefix uri]))
+
+(defn push-element
+  "Push a start-element marker along with attributes onto an SXML parser stack.
+  Any namespace prefix delcarations immediately preceding the start-element
+  marker will be inserted onto the element when it is reduced."
+  [stack tag attrs]
+  (conj stack [::start-element tag attrs]))
+
+(defn reduce-element
+  "Reduce an element on an SXML parser stack. When an element-end event is
+  received, the element is reduced by searching backwards for the matching
+  start-element marker, and insert all stack entries above it as children. Any
+  namespace prefix declarations immediately preceding the start-element marker
+  are inserted into the element's attributes."
+  ([stack tag] (reduce-element stack tag ()))
+  ([stack tag children]
+   (let [[top & remain] stack
+         start-mark? (and (vector? top)
+                          (->> top (take 2) (= [::start-element tag])))]
+     (when (nil? top) (throw (IllegalStateException. "Stack underflow.")))
+     (if start-mark?
+       (reduce-element remain tag (nth top 2) children)
+       (recur remain tag (conj children top)))))
+  ([stack tag attrs children]
+   (let [[top & remain] stack
+         prefix-mark? (and (vector? top)
+                           (->> top first (= ::start-prefix)))]
+     (if prefix-mark?
+       (let [[_ prefix uri] top]
+         (recur remain tag (assoc attrs (xmlnsify prefix) uri) children))
+       (conj stack (vec (concat [tag attrs] children)))))))
+
+(defn extract-sax-attributes
+  "Convert a SAX2 Attributes object into an SXML attribute map."
+  [attrs]
+  (into {} (for [index (range (.getLength attrs))]
+             [(keyword (.getQName attrs index))
+              (.getValue attrs index)])))
+
+(defn sax-handler
+  "Produce a SAX ContentHandler instance, plus an atom. Initially the atom
+  contains an empty list (the stack). The handler implements a shift-reduce
+  parser, and as parsing events occur, tokens are shifted onto the stack, and
+  portions of the top-of-stack reduced into SXML elements. When the document
+  ends (assuming it was well-formed), the stack contains a single SXML element
+  (the root element), which replaces the stack as the atom's value."
+  []
+  (let [sxml-stack (atom ())]
+    [sxml-stack
+     (reify
+       ContentHandler
+       (startDocument [_] nil)
+       (startPrefixMapping [_ prefix uri]
+          (swap! sxml-stack push-prefix (keyword prefix) uri))
+       (startElement [_ _ _ qname attrs]
+          (swap! sxml-stack push-element (keyword qname)
+                 (extract-sax-attributes attrs)))
+       (characters [_ ch start length]
+          (swap! sxml-stack push-text (String. ch start length)))
+       (ignorableWhitespace [_ _ _ _] nil)
+       (processingInstruction [_ _ _] nil)
+       (setDocumentLocator [_ _] nil)
+       (skippedEntity [_ _] nil)
+       (endElement [_ _ _ qname]
+          (swap! sxml-stack reduce-element (keyword qname)))
+       (endPrefixMapping [_ _] nil)
+       (endDocument [_]
+          (swap! sxml-stack first)))]))
+
+(defn sax-result
+  "As with sax-handler, except wraps the handler in a SAXResult instance, for
+  use with XSL transformations."
+  []
+  (let [[result handler] (sax-handler)]
+    [result (SAXResult. handler)]))
