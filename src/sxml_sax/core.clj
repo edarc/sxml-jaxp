@@ -176,7 +176,8 @@
         form            (normalize form)
         not-recognized!
         #(throw (SAXNotRecognizedException.
-                  "SXML-SAX source has no such feature or property."))]
+                  "SXML-SAX source has no such feature or property."))
+        default-xmlns   *default-xmlns*]
     (reify
       XMLReader
       (getContentHandler [_] @content-handler)
@@ -199,7 +200,9 @@
       (setContentHandler [_ ch] (reset! content-handler ch))
       (setErrorHandler [_ eh] (reset! err-handler eh))
       (getErrorHandler [_] @err-handler)
-      (^void parse [_ ^InputSource _] (fire-events form @content-handler)))))
+      (^void parse [_ ^InputSource _]
+         (binding [*default-xmlns* default-xmlns]
+           (fire-events form @content-handler))))))
 
 (defn sax-source
   "Produce a SAXSource for use in XML transformations which supplies SAX events
