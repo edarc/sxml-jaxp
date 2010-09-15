@@ -177,7 +177,7 @@
   [form ch]
   (.startDocument ch)
   (binding [*xmlns* *default-xmlns*]
-    (fire-events* (sax-event-seq (apply-namespaces form)) ch))
+    (fire-events* (sax-event-seq* (apply-namespaces (normalize form))) ch))
   (.endDocument ch))
 
 (defn sax-reader
