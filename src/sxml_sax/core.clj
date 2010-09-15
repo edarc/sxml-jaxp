@@ -122,16 +122,17 @@
   (cond
     ((any-of vector? seq?) form)
     (let [[tag attrs & children] form
-          [q l u tag-prefix] (qualify-name tag)
           xmlns-decls (into {} (for [k (filter attr-is-xmlns (keys attrs))]
                                  [(de-xmlnsify k) (attrs k)]))]
       (binding [*xmlns* (merge *xmlns* xmlns-decls)]
-        (doseq [[m _] xmlns-decls] (.startPrefixMapping
-                                     ch (if m (name m) "") (*xmlns* m)))
-        (.startElement ch u l q (mk-sax-attributes tag-prefix attrs))
-        (doseq [child children] (fire-events* child ch))
-        (.endElement ch u l q)
-        (doseq [[m _] xmlns-decls] (.endPrefixMapping ch (if m (name m) "")))))
+        (let [[q l u tag-prefix] (qualify-name tag)]
+          (doseq [[m _] xmlns-decls] (.startPrefixMapping
+                                       ch (if m (name m) "") (*xmlns* m)))
+          (.startElement ch u l q (mk-sax-attributes tag-prefix attrs))
+          (doseq [child children] (fire-events* child ch))
+          (.endElement ch u l q)
+          (doseq [[m _] xmlns-decls]
+            (.endPrefixMapping ch (if m (name m) ""))))))
     (string? form) (.characters ch (char-array form) 0 (.length form))
     :else (recur (str form) ch)))
 
