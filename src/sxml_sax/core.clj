@@ -83,14 +83,19 @@
                          (or (*xmlns* prefix-kw) ""))]
     [qname lname uri prefix-kw]))
 
+(defn- xmlnsify
+  "Converts a keyword naming an XML namespace prefix and converts it into a
+  keyword representing the attribute name of an xmlns declaration."
+  [kw]
+  (if kw
+    (keyword (str "xmlns:" (name kw)))
+    :xmlns))
+
 (defn- apply-namespaces
   "Inserts xmlns attributes into the root element of form which declare the
   namespaces currently defined in *xmlns*. Assumes form is normalized."
   [form]
-  (let [xmlnsify (fn [kw] (if kw
-                            (keyword (str "xmlns:" (name kw)))
-                            :xmlns))
-        xmlns    (into {} (for [[k v] *xmlns*] [(xmlnsify k) v]))
+  (let [xmlns (into {} (for [[k v] *xmlns*] [(xmlnsify k) v]))
         [root-tag attrs & content] form]
     (concat [root-tag] [(merge xmlns attrs)] content)))
 
