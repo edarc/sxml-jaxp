@@ -155,12 +155,12 @@
   "Produce a SAX XMLReader instance which, when .parse is invoked, will
   generate SAX events corresponding to the XML represented by the given SXML
   form.
-  
+
   Note 1: The XMLReader interface specifies that the .parse method may only
   take an argument of a type which is useless for the purpose of this library,
   therefore the form which is to be read is simply captured in the instance,
   and the argument to .parse is ignored.
-  
+
   Note 2: SAX mandates that XMLReader accept setFeature requests for two
   features, in particular 'namespaces' and 'namespace-prefixes'. However, as
   far as the author can determine, when each feature is on, the corresponding

@@ -7,8 +7,8 @@
     (is (= (normalize "foo") "foo")))
   (testing "empty elements"
     (are [in] (= (normalize in) [:t {}])
-      :t     
-      [:t]   
+      :t
+      [:t]
       [:t {}]))
   (testing "non-empty elements with no attributes"
     (are [in] (= (normalize in) [:t {} "foo"])
