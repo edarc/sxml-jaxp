@@ -62,7 +62,7 @@
        :arglists '([form])}
   simplify (comp simplify* normalize))
 
-(defn- attr-is-xmlns
+(defn- attr-is-xmlns?
   "Predicate which returns true if the given keyword (corresponding to an
   attribute name) is an XML namespace declaration."
   [kw]
@@ -79,7 +79,7 @@
         [before after] (.split qname ":")
         prefix-kw      (when after (keyword before))
         lname          (or after qname)
-        uri            (if (attr-is-xmlns kw) ""
+        uri            (if (attr-is-xmlns? kw) ""
                          (or (*xmlns* prefix-kw) ""))]
     [qname lname uri prefix-kw]))
 
@@ -125,7 +125,7 @@
   (cond
     ((any-of vector? seq?) form)
     (let [[tag attrs & children] form
-          xmlns-decls (into {} (for [k (filter attr-is-xmlns (keys attrs))]
+          xmlns-decls (into {} (for [k (filter attr-is-xmlns? (keys attrs))]
                                  [(de-xmlnsify k) (attrs k)]))]
       (binding [*xmlns* (merge *xmlns* xmlns-decls)]
         (let [xmlns *xmlns*]
