@@ -3,7 +3,7 @@
   (:require [sxml-sax.xslt.lang :as xsl])
   (:require [sxml-sax.core :as sxml])
   (:import
-    (javax.xml.transform TransformerFactory Result)
+    (javax.xml.transform TransformerFactory Transformer Result)
     (javax.xml.transform.sax SAXSource)
     (javax.xml.transform.stream StreamSource StreamResult)
     (java.io InputStream OutputStream Reader Writer File StringReader
@@ -25,9 +25,9 @@
   class)
 (defmethod to-source ::sxml [sx] (sxml/sax-source sx))
 (defmethod to-source SAXSource [ss] ss)
-(defmethod to-source InputStream [ir] (StreamSource. ir))
-(defmethod to-source Reader [r] (StreamSource. r))
-(defmethod to-source File [f] (StreamSource. f))
+(defmethod to-source InputStream [^InputStream ir] (StreamSource. ir))
+(defmethod to-source Reader [^Reader r] (StreamSource. r))
+(defmethod to-source File [^File f] (StreamSource. f))
 (defmethod to-source String [s] (to-source (StringReader. s)))
 
 (derive OutputStream ::adapt-with-streamresult)
@@ -63,7 +63,7 @@
   type)
 (defmethod from-result ::literal-result [r] (first r))
 (defmethod from-result ::streamresult-adapted [sra] (second sra))
-(defmethod from-result ::string-output [sw] (.toString (second sw)))
+(defmethod from-result ::string-output [sw] (.toString ^String (second sw)))
 (defmethod from-result ::sxml-output [r] @(second r))
 
 (defn transformer
@@ -87,7 +87,7 @@
   ([stylesheet source] (transform! stylesheet source :sxml))
   ([stylesheet source result]
    (let [result (to-result result)]
-     (.transform (transformer stylesheet)
+     (.transform ^Transformer (transformer stylesheet)
                  (to-source source)
                  (first result))
      (from-result result))))

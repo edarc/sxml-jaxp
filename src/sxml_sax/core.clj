@@ -2,7 +2,7 @@
   "Tools for using SXML-inspired XML representations with SAX2."
   (:import
     (org.xml.sax SAXNotRecognizedException XMLReader InputSource
-                 ContentHandler)
+                 ContentHandler Attributes)
     (org.xml.sax.helpers AttributesImpl)
     (javax.xml.transform.sax SAXSource SAXResult)))
 
@@ -148,7 +148,7 @@
   "Given a SAX event seq and a SAX ContentHandler, iterate through the events,
   firing the appropriate handler methods. This does not fire start and end
   document events."
-  [event-seq ch]
+  [event-seq ^ContentHandler ch]
   (doseq [[ev & params] event-seq]
     (case ev
       :start-prefix
@@ -160,7 +160,7 @@
             [q l u tag-prefix] (qualify-name tag)]
         (.startElement ch u l q (make-sax-attributes tag-prefix attrs)))
       :text-node
-      (let [text (first params)]
+      (let [^String text (first params)]
         (.characters ch (char-array text) 0 (.length text)))
       :end-element
       (let [tag (first params)
@@ -175,7 +175,7 @@
   "Applies default namespace declarations, fires events appropriate for the
   root element of the given SXML form, then hands off to 'fire-events* to
   generate all other SAX events."
-  [form ch]
+  [form ^ContentHandler ch]
   (.startDocument ch)
   (binding [*xmlns* *default-xmlns*]
     (fire-events* (sax-event-seq* (apply-namespaces (normalize form))) ch))
@@ -287,10 +287,10 @@
 
 (defn extract-sax-attributes
   "Convert a SAX2 Attributes object into an SXML attribute map."
-  [attrs]
+  [^Attributes attrs]
   (into {} (for [index (range (.getLength attrs))]
              [(keyword (.getQName attrs index))
-              (.getValue attrs index)])))
+              (.getValue attrs ^Integer index)])))
 
 (defn sax-handler
   "Produce a SAX ContentHandler instance, plus an atom. Initially the atom
