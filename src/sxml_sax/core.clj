@@ -72,9 +72,10 @@
 
 (defn- qualify-name
   "Accepts a keyword representing a tag or attribute name, and returns [qname
-  lname uri], where qname is the qualified name, lname is the local name, and
-  uri is the URI of the namespace it belongs to, as defined by the current
-  value of *xmlns*."
+  lname uri prefix-kw], where qname is the qualified name, lname is the local
+  name, uri is the URI of the namespace it belongs to, as defined by the
+  current value of *xmlns*, and prefix-kw is a keywordized version of the
+  namespace prefix."
   [kw]
   (let [qname          (name kw)
         [before after] (.split qname ":")
@@ -112,12 +113,11 @@
   them. The function must also know the tag's namespace prefix, so that
   unqualified attributes will be assigned to the correct namespace URI."
   [tag-prefix attr-map]
-  (binding [*xmlns* (assoc *xmlns* nil (*xmlns* tag-prefix))]
-    (let [attrs (AttributesImpl.)]
-      (doseq [[attr-kw attr-val] attr-map]
-        (let [[q l u _] (qualify-name attr-kw)]
-          (.addAttribute attrs u l q "CDATA" attr-val)))
-      attrs)))
+  (let [attrs (AttributesImpl.)]
+    (doseq [[attr-kw attr-val] attr-map]
+      (let [[q l u _] (qualify-name attr-kw)]
+        (.addAttribute attrs u l q "CDATA" attr-val)))
+    attrs))
 
 (defn- sax-event-seq*
   "Given an SXML form, produce a sequence of events corresponding to the SAX
