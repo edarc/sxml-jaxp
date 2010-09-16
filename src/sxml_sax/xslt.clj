@@ -66,14 +66,23 @@
 (defmethod from-result ::string-output [sw] (.toString ^String (second sw)))
 (defmethod from-result ::sxml-output [r] @(second r))
 
-(defn transformer
-  "Create an XSLT Transformer from any sort of thing that might function as a
-  source of XML containing the stylesheet."
+(defn compile-template
+  "Pre-compile an XSL template into a Transformer. The pre-compiled template
+  can be used as the stylesheet argument to transform!, which will prevent it
+  having to parse and compile the template on each invocation."
   [ss]
   (binding [sxml/*default-xmlns* (assoc sxml/*default-xmlns* :xsl
                                         "http://www.w3.org/1999/XSL/Transform")]
     (.. (TransformerFactory/newInstance)
       (newTransformer (to-source ss)))))
+
+(defmulti ^{:private true} transformer
+  "Create an XSLT Transformer from any sort of thing that might function as a
+  source of XML containing the stylesheet."
+  class)
+
+(defmethod transformer Transformer [t] t)
+(defmethod transformer Object [o] (compile-template o))
 
 (defn transform!
   "Perform XSL Transformations using the given stylesheet and source document
