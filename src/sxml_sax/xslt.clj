@@ -63,7 +63,7 @@
   type)
 (defmethod from-result ::literal-result [r] (first r))
 (defmethod from-result ::streamresult-adapted [sra] (second sra))
-(defmethod from-result ::string-output [sw] (.toString ^String (second sw)))
+(defmethod from-result ::string-output [sw] (.toString ^StringWriter (second sw)))
 (defmethod from-result ::sxml-output [r] @(second r))
 
 (defn compile-template
