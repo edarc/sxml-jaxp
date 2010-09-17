@@ -144,6 +144,13 @@
        :arglists '([form])}
   sax-event-seq (comp sax-event-seq* normalize))
 
+(defn compile-sxml
+  "Given an SXML form, compile the SAX event sequence and return it,
+  type-tagged. Pre-compiled SXML can be used where the result will be emitted
+  as SAX events."
+  [form]
+  (with-meta (vec (sax-event-seq form)) {:type ::compiled-sxml}))
+
 (defn- fire-events*
   "Given a SAX event seq and a SAX ContentHandler, iterate through the events,
   firing the appropriate handler methods. This does not fire start and end
@@ -178,7 +185,9 @@
   [form ^ContentHandler ch]
   (.startDocument ch)
   (binding [*xmlns* *default-xmlns*]
-    (fire-events* (sax-event-seq* (apply-namespaces (normalize form))) ch))
+    (if (= (type form) ::compiled-sxml)
+      (fire-events* form ch)
+      (fire-events* (sax-event-seq* (apply-namespaces (normalize form))) ch)))
   (.endDocument ch))
 
 (defn sax-reader
