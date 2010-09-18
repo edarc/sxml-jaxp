@@ -1,6 +1,9 @@
 (ns sxml-sax.test.core
   (:use [sxml-sax.core] :reload)
-  (:use [clojure.test]))
+  (:use [clojure.test])
+  (:import
+    (java.io InputStream OutputStream Reader Writer File StringReader
+             StringWriter ByteArrayInputStream ByteArrayOutputStream)))
 
 (deftest normalization "normalization of SXML forms"
   (testing "non-markup"
@@ -177,6 +180,14 @@
            (reduce-element :root)
            first))
       "namespace declaration"))
+
+(deftest sxml-input "reading SXML from various input"
+  (let [string-input "<root attr='val'><a/><b/><c/></root>"]
+    (are [s] (= (simplify (read-sxml s))
+                [:root {:attr "val"} :a :b :c])
+         string-input
+         (StringReader. string-input)
+         (ByteArrayInputStream. (.getBytes string-input)))))
 
 (defn sax-roundtrip
   [form]

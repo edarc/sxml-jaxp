@@ -4,7 +4,10 @@
     (org.xml.sax SAXNotRecognizedException XMLReader InputSource
                  ContentHandler Attributes)
     (org.xml.sax.helpers AttributesImpl)
-    (javax.xml.transform.sax SAXSource SAXResult)))
+    (javax.xml.transform.sax SAXSource SAXResult)
+    (javax.xml.parsers SAXParserFactory)
+    (java.io InputStream OutputStream Reader Writer File StringReader
+             StringWriter FileReader)))
 
 (def ^{:doc "The default map of XML namespace prefixes. This is referenced when
             SAX events are generated to resolve namespace prefixes that are not
@@ -337,3 +340,39 @@
   []
   (let [[result handler] (sax-handler)]
     [result (SAXResult. handler)]))
+
+(derive clojure.lang.IPersistentVector ::sxml)
+
+(defmulti ^{:private true} get-xml-reader
+  "Get the appropriate kind of XMLReader for the given input source type."
+  class)
+;; I have no idea why you would want to do this, but might as well be
+;; orthogonal as possible.
+(defmethod get-xml-reader ::sxml [sxml]
+  (sax-reader sxml))
+(defmethod get-xml-reader Object [_]
+  (.. SAXParserFactory (newInstance) (newSAXParser) (getXMLReader)))
+
+(defmulti ^{:private true} to-parser-input
+  "Convert the input source to the appropriate type for passing to the
+  XMLReader for parsing."
+  class)
+(defmethod to-parser-input ::sxml [_] nil)
+(defmethod to-parser-input InputStream [^InputStream is]
+  (InputSource. is))
+(defmethod to-parser-input Reader [^Reader r]
+  (InputSource. r))
+(defmethod to-parser-input File [^File f]
+  (to-parser-input (FileReader. f)))
+(defmethod to-parser-input String [^String s]
+  (to-parser-input (StringReader. s)))
+
+(defn read-sxml
+  "Convert some source of XML data to an SXML structure."
+  [src]
+  (let [[output handler] (sax-handler)
+        reader (get-xml-reader src)]
+    (doto reader
+      (.setContentHandler handler)
+      (.parse (to-parser-input src)))
+    @output))
