@@ -11,11 +11,18 @@
 
 (defn identity-stylesheet
   "Create an SXML XSLT template that is the identity transform, that is it
-  copies the source document to the output document unchanged."
+  copies the source document to the output document unchanged. In general this
+  is only useful for testing; use copy! if you really want to accomplish this."
   []
   (xsl/stylesheet "1.0"
     (xsl/match-template "@*|node()"
       (xsl/copy (xsl/apply-templates-to "@*|node()")))))
+
+(defn identity-transformer
+  "Create a Transformer that copies the source to the result without any
+  transformation."
+  []
+  (.. (TransformerFactory/newInstance) (newTransformer)))
 
 (derive clojure.lang.IPersistentVector ::sxml)
 
@@ -100,3 +107,13 @@
                  (to-source source)
                  (first result))
      (from-result result))))
+
+(defn copy!
+  "Like transform!, but accepts no stylesheet and performs no transformation,
+  simply copies the source to the result. You may pass :string as the result to
+  have the output returned in string format (the default when no result
+  argument is given), or :sxml to get the result in SXML format (in which case
+  you probably want to use sxml-sax.core/read-sxml which is likely to be more
+  efficient)."
+  ([source] (copy! source :string))
+  ([source result] (transform! (identity-transformer) source result)))

@@ -68,3 +68,14 @@
              (t result)
              @output)
            (normalize [:root :a :b :c])))))
+
+(deftest sxml-output "copying to various sinks"
+  (let [p (fn [r] (copy! [:root :a :b :c] r))
+        exclude-?xml (fn [s] (re-find #"<[^?].*[^?]>" s))
+        expect-string "<root><a/><b/><c/></root>"]
+    (is (= (exclude-?xml (p :string))
+           expect-string))
+    (is (= (exclude-?xml (.toString (p (StringWriter.))))
+           expect-string))
+    (is (= (exclude-?xml (.toString (p (ByteArrayOutputStream.))))
+           expect-string))))
