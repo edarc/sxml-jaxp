@@ -416,8 +416,9 @@
   "Convert some source of XML data to an SXML structure."
   [src]
   (let [[output handler] (sax-handler)
-        reader (get-xml-reader src)]
+        ^XMLReader reader (get-xml-reader src)
+        ^InputSource input (to-parser-input src)]
     (doto reader
       (.setContentHandler handler)
-      (.parse (to-parser-input src)))
+      (.parse input))
     @output))
