@@ -1,5 +1,6 @@
 (ns sxml-sax.xslt.lang
-  "Syntactic sugar for constructing XSL templates in SXML.")
+  "Syntactic sugar for constructing XSL templates in SXML."
+  (:refer-clojure :exclude [comment key import sort]))
 
 (defmacro ^{:private true} deftag
   "Define a function that emits an SXML XSLT tag."
