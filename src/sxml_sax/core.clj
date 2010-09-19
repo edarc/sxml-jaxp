@@ -288,6 +288,22 @@
   [stack text]
   (conj stack text))
 
+(defn coalesce-text
+  "Coalesce a contiguous series of text nodes at the top of the SXML parser
+  stack into a single string. This is needed because many SAX parsers emit long
+  strings of 'characters' events in succession, often with very short payloads,
+  especially when there are many entity references in the source document."
+  [stack]
+  (if (->> stack (take 2) (every? string?))
+    (loop [strs ()
+           [top & tail] stack]
+      (if (string? top)
+        (recur (conj strs top) tail)
+        (-> tail
+          (conj top)
+          (conj (apply str strs)))))
+    stack))
+
 (defn push-prefix
   "Push a an XML namespace prefix declaration onto an SXML parser stack. All
   such prefix declarations are inserted onto the element immediately following
@@ -300,7 +316,7 @@
   Any namespace prefix delcarations immediately preceding the start-element
   marker will be inserted onto the element when it is reduced."
   [stack tag attrs]
-  (conj stack [::start-element tag attrs]))
+  (conj (coalesce-text stack) [::start-element tag attrs]))
 
 (defn reduce-element
   "Reduce an element on an SXML parser stack. When an element-end event is
@@ -308,7 +324,7 @@
   start-element marker, and insert all stack entries above it as children. Any
   namespace prefix declarations immediately preceding the start-element marker
   are inserted into the element's attributes."
-  ([stack tag] (reduce-element stack tag ()))
+  ([stack tag] (reduce-element (coalesce-text stack) tag ()))
   ([stack tag children]
    (let [[top & remain] stack
          start-mark? (and (vector? top)
