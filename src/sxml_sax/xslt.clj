@@ -3,7 +3,7 @@
   (:require [sxml-sax.xslt.lang :as xsl])
   (:require [sxml-sax.core :as sxml])
   (:import
-    (javax.xml.transform TransformerFactory Transformer Result)
+    (javax.xml.transform TransformerFactory Transformer Templates Result)
     (javax.xml.transform.sax SAXSource)
     (javax.xml.transform.stream StreamSource StreamResult)
     (java.io InputStream OutputStream Reader Writer File StringReader
@@ -74,14 +74,14 @@
 (defmethod from-result ::sxml-output [r] @(second r))
 
 (defn compile-template
-  "Pre-compile an XSL template into a Transformer. The pre-compiled template
-  can be used as the stylesheet argument to transform!, which will prevent it
-  having to parse and compile the template on each invocation."
+  "Pre-compile an XSL template into a Templates object. The pre-compiled
+  template can be used as the stylesheet argument to transform!, which will
+  prevent it having to parse and compile the template on each invocation."
   [ss]
   (binding [sxml/*default-xmlns* (assoc sxml/*default-xmlns* :xsl
                                         "http://www.w3.org/1999/XSL/Transform")]
     (.. (TransformerFactory/newInstance)
-      (newTransformer (to-source ss)))))
+      (newTemplates (to-source ss)))))
 
 (defmulti ^{:private true} transformer
   "Create an XSLT Transformer from any sort of thing that might function as a
@@ -89,7 +89,8 @@
   class)
 
 (defmethod transformer Transformer [t] t)
-(defmethod transformer Object [o] (compile-template o))
+(defmethod transformer Templates [^Templates t] (.newTransformer t))
+(defmethod transformer Object [o] (transformer (compile-template o)))
 
 (defn transform!
   "Perform XSL Transformations using the given stylesheet and source document

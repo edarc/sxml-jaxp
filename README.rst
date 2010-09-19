@@ -189,7 +189,7 @@ Ars Technica using their RSS feed::
 Here we've pre-compiled our XSL template using ``compile-template``. This can
 be used if you plan on transforming more than one document with a particular
 stylesheet. It uses TrAX to compile the template into some object implementing
-``Transformer``, so that it doesn't have to parse and compile it for every
+``Templates``, so that it doesn't have to parse and compile it for every
 invocation.
 
 .. [2] ``copy!`` actually recognizes the ``:sxml`` sink also, although I don't
