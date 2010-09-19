@@ -132,7 +132,7 @@ XSL Transforms
 --------------
 
 Transformations are performed with the ``sxml-sax.xslt/transform!`` function.
-This accepts a stylesheet, a source, and a result. I'll use our XSL DSL
+This accepts a stylesheet, a source, and a result. I'll use the XSLT DSL
 (defined in ``sxml-sax.xslt.lang``) to create XSLT stylesheets. ::
 
   user=> (t/transform! (xsl/stylesheet "1.0"
@@ -200,7 +200,7 @@ invocation.
 XSLT DSL
 ........
 
-The namespace ``sxml-sax.xslt.lang`` defines a DSL for writing XSL
+The namespace ``sxml-sax.xslt.lang`` [3]_ defines a DSL for writing XSL
 transformation stylesheets in Clojure. This DSL outputs the stylesheets in SXML
 format. Here's the template we used in the last example::
 
@@ -260,6 +260,53 @@ There are a handful of exceptions:
   wildcard case, and ``apply-templates-to`` for the selective case. The latter
   accepts as it's positional parameter the XPath expression appearing in the
   ``select`` attribute.
+
+.. [3] ``:use``'ing the ``sxml-sax.xslt.lang`` namespace should be done with
+   caution, as XSLT uses names for several instructions that collide with
+   identically-named Clojure core functions. Use ``:only``, ``:exclude``, or
+   ``:refer-clojure`` to control these collisions if you absolutely must
+   ``:use`` the XSLT DSL namespace.
+
+XML namespaces
+==============
+
+``sxml-sax`` is XML-namespace-aware. As you've probably guessed from the last
+section, you can specify a namespace prefix on a tag name in the same way as
+you would in regular XML, e.g. ``:xsl:stylesheet``, ``:xi:include``, or
+``:fo:page-sequence``.
+
+Namespace prefix declarations are also specified in an analogous way to XML:
+using ``xmlns`` attributes::
+
+  [:html {:xmlns "http://www.w3.org/1999/xhtml",
+          :xmlns:xi "http://www.w3.org/2001/XInclude"}
+   [:head [:title "Namespace example"]]
+   [:xi:include {:href "body.xml"}]]
+
+These attributes are recognized as namespace prefix declarations and
+communicated to the various Java XML APIs as required.
+
+Whenever an SXML form is traversed by ``sxml-sax``, a map contained in
+``sxml-sax.core/*default-xmlns*`` is used to resolve un-declared namespace
+prefixes::
+
+  user=> (binding [s/*default-xmlns* {nil "http://www.w3.org/1999/xhtml",
+                                      :xi "http://www.w3.org/2001/XInclude"}]
+           (t/copy! [:html
+                     [:head [:title "Namespace example"]]
+                     [:xi:include {:href "body.xml"}]]
+                    *out*))
+  <?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"
+                                              xmlns:xi="http://www.w3.org/2001/XInclude">
+     <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Namespace example</title>
+     </head>
+     <xi:include href="body.xml"></xi:include>
+  </html>#<OutputStreamWriter java.io.OutputStreamWriter@484ae502>
+
+Note that for convenience, ``sxml-sax.xslt`` automatically declares the ``xsl``
+prefix whenever it parses a stylesheet that is expressed in SXML.
 
 License
 =======
