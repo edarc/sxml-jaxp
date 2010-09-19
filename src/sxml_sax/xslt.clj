@@ -3,8 +3,8 @@
   (:require [sxml-sax.xslt.lang :as xsl])
   (:require [sxml-sax.core :as sxml])
   (:import
-    (javax.xml.transform TransformerFactory Transformer Templates Result)
-    (javax.xml.transform.sax SAXSource)
+    (javax.xml.transform TransformerFactory Transformer Templates Source
+                         Result)
     (javax.xml.transform.stream StreamSource StreamResult)
     (java.io InputStream OutputStream Reader Writer File StringReader
              StringWriter)))
@@ -31,7 +31,7 @@
   Source object for transforms."
   class)
 (defmethod to-source ::sxml [sx] (sxml/sax-source sx))
-(defmethod to-source SAXSource [ss] ss)
+(defmethod to-source Source [s] s)
 (defmethod to-source InputStream [^InputStream ir] (StreamSource. ir))
 (defmethod to-source Reader [^Reader r] (StreamSource. r))
 (defmethod to-source File [^File f] (StreamSource. f))
