@@ -308,6 +308,27 @@ prefixes::
 Note that for convenience, ``sxml-sax.xslt`` automatically declares the ``xsl``
 prefix whenever it parses a stylesheet that is expressed in SXML.
 
+Limitations and future work
+===========================
+
+* Currently the SXML parser ignores processing instructions, and there is no
+  way to express a processing instruction in SXML. Advice and suggestions
+  welcome.
+
+* The name ``sxml-sax`` is now a misnomer, the library provides access to many
+  parts of JAXP besides SAX. All the other library namespace name choices are
+  kinda poor too. Expect namespace upheaval and other mass hysteria.
+
+* Ad-hoc XML namespace syntax (``:xsl:value-of``) is probably bogus,
+  considering changing to use real live Clojure keyword namespaces instead
+  (``:xsl/value-of``).
+
+* XPath support would be pretty awesome.
+
+* With the current syntax, manipulating SXML forms by hand in the presence of
+  XML namespace declarations is a pretty nasty affair. The library should
+  provide help with this.
+
 License
 =======
 
