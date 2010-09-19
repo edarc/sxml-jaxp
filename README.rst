@@ -15,7 +15,7 @@ Clojure-flavored SXML
 =====================
 
 Clojure-flavored SXML uses vectors, keywords, and maps to denote elements,
-tags, and attributes[1]_. ::
+tags, and attributes. [1]_ ::
 
   [:item {}
     [:title {} "Memorandum"]
@@ -119,8 +119,8 @@ thing you passed as the "sink" so you can do more stuff with it::
   user=> (.toString (t/copy! fancy-hello (java.io.StringWriter.)))
   "<?xml version=\"1.0\" encoding=\"UTF-8\"?><greet language=\"en\">Hello world!</greet>"
 
-``copy!`` also recognizes the special sink[2]_ ``:string``, which is the
-default when you don't provide a sink. This causes it to return the source as a
+``copy!`` also recognizes the special sink ``:string``, which is the default
+when you don't provide a sink. [2]_ This causes it to return the source as a
 string of XML::
 
   user=> (t/copy! fancy-hello :string)
@@ -144,11 +144,6 @@ This accepts a stylesheet, a source, and a result. I'll use our XSL DSL
 I didn't provide a target for the result, so it defaulted to the special target
 ``:sxml`` [2]_. Like ``copy!``, it recognizes the special target ``:string`` as
 well, and you can use any other reasonable object as your result target.
-
-.. [2] ``copy!`` actually recognizes the ``:sxml`` sink also, although I don't
-   know why you'd ever need that; generally you'd want to use
-   ``sxml-sax.core/read-sxml`` which bypasses TrAX and reads the input directly
-   with SAX.
 
 Here's a more complex example, getting a seq of the latest article titles on
 Ars Technica using their RSS feed::
@@ -197,6 +192,11 @@ stylesheet. It uses TrAX to compile the template into some object implementing
 ``Transformer``, so that it doesn't have to parse and compile it for every
 invocation.
 
+.. [2] ``copy!`` actually recognizes the ``:sxml`` sink also, although I don't
+   know why you'd ever need that; generally you'd want to use
+   ``sxml-sax.core/read-sxml`` which bypasses TrAX and reads the input directly
+   with SAX.
+
 XSLT DSL
 ........
 
@@ -227,39 +227,39 @@ supplying a map after the positional parameter.
 
 There are a handful of exceptions:
 
- * ``<xsl:template />`` is actually exposed as two separate functions,
-   ``match-template`` and ``named-template``, where the positional argument is
-   the XPath ``match`` expression and the template name, respectively, since it
-   is fairly common to specify either one or the other.
+* ``<xsl:template />`` is actually exposed as two separate functions,
+  ``match-template`` and ``named-template``, where the positional argument is
+  the XPath ``match`` expression and the template name, respectively, since it
+  is fairly common to specify either one or the other.
 
- * ``<xsl:choose />``, a particularly contorted and wordy XSLT construct, is
-   exposed as ``cond*``, which looks like an ordinary Clojure ``cond`` except
-   that in the predicate position are boolean XPath expressions (which appear
-   in the ``<xsl:when test="" />`` attribute) or ``:else`` (for
-   ``<xsl:otherwise />``), and in the consequent position is the contents of
-   the ``when`` or ``otherwise`` instructions. You can put multiple elements
-   inside the consequent by placing them in a vector, as long as the vector
-   does not start with a keyword::
-     
-     user=> (xsl/cond*
-              "foo" (xsl/value-of "foo")
-              "bar" :bar
-              :else [[:foo "bar"] [:baz "baz"]])
-     [:xsl:choose
-      [:xsl:when {:test "foo"} [:xsl:value-of {:select "foo"}]]
-      [:xsl:when {:test "bar"} :bar]
-      [:xsl:otherwise [:foo "bar"] [:baz "baz"]]]
+* ``<xsl:choose />``, a particularly contorted and wordy XSLT construct, is
+  exposed as ``cond*``, which looks like an ordinary Clojure ``cond`` except
+  that in the predicate position are boolean XPath expressions (which appear
+  in the ``<xsl:when test="" />`` attribute) or ``:else`` (for
+  ``<xsl:otherwise />``), and in the consequent position is the contents of
+  the ``when`` or ``otherwise`` instructions. You can put multiple elements
+  inside the consequent by placing them in a vector, as long as the vector
+  does not start with a keyword::
 
- * ``<xsl:if />`` is exposed as ``if*``. Beware that it behaves like XSLT
-   ``<xsl:if />`` and does not accept an alternate expression like Clojure's
-   ``if``; all arguments after the condition expression are part of the
-   consequent. (It is more akin to Clojure's ``when``). If you need to express
-   an alternate, use ``cond*``.
+    user=> (xsl/cond*
+             "foo" (xsl/value-of "foo")
+             "bar" :bar
+             :else [[:foo "bar"] [:baz "baz"]])
+    [:xsl:choose
+     [:xsl:when {:test "foo"} [:xsl:value-of {:select "foo"}]]
+     [:xsl:when {:test "bar"} :bar]
+     [:xsl:otherwise [:foo "bar"] [:baz "baz"]]]
 
- * ``<xsl:apply-templates />`` is exposed as ``apply-templates`` for the
-   wildcard case, and ``apply-templates-to`` for the selective case. The latter
-   accepts as it's positional parameter the XPath expression appearing in the
-   ``select`` attribute.
+* ``<xsl:if />`` is exposed as ``if*``. Beware that it behaves like XSLT
+  ``<xsl:if />`` and does not accept an alternate expression like Clojure's
+  ``if``; all arguments after the condition expression are part of the
+  consequent. (It is more akin to Clojure's ``when``). If you need to express
+  an alternate, use ``cond*``.
+
+* ``<xsl:apply-templates />`` is exposed as ``apply-templates`` for the
+  wildcard case, and ``apply-templates-to`` for the selective case. The latter
+  accepts as it's positional parameter the XPath expression appearing in the
+  ``select`` attribute.
 
 License
 =======
