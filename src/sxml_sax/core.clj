@@ -29,6 +29,35 @@
   [& preds]
   (fn [x] (some #(% x) preds)))
 
+(defn normalize-1
+  "Return the given SXML representation with the top level element in
+  normalized, long form."
+  [form]
+  (cond
+    (vector? form)
+    (vec (let [[tag maybe-attrs & tail] form]
+           (cond
+             (map? maybe-attrs) (concat [tag maybe-attrs] tail)
+             (nil? maybe-attrs) [tag {}]
+             :else (concat [tag {}] (conj tail maybe-attrs)))))
+    (keyword? form) [form {}]
+    :else form))
+
+(defn tag
+  "Get the tag name of the given SXML element."
+  [elem]
+  (first (normalize-1 elem)))
+
+(defn attrs
+  "Get the attribute map of the given SXML element."
+  [elem]
+  (second (normalize-1 elem)))
+
+(defn children
+  "Get the child nodes of the given SXML element."
+  [elem]
+  (drop 2 (normalize-1 elem)))
+
 (defn normalize
   "Return the normalized, long form of the given SXML representation. All tag
   elements will be of the form [tag attrs & children], where tag is a keyword
