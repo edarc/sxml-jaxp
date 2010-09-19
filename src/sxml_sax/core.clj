@@ -35,11 +35,11 @@
   [form]
   (cond
     (vector? form)
-    (vec (let [[tag maybe-attrs & tail] form]
-           (cond
-             (map? maybe-attrs) (concat [tag maybe-attrs] tail)
-             (nil? maybe-attrs) [tag {}]
-             :else (concat [tag {}] (conj tail maybe-attrs)))))
+    (let [[tag maybe-attrs & tail] form]
+      (cond
+        (map? maybe-attrs) form
+        (nil? maybe-attrs) [tag {}]
+        :else (vec (concat [tag {}] (conj tail maybe-attrs)))))
     (keyword? form) [form {}]
     :else form))
 
@@ -51,12 +51,12 @@
 (defn attrs
   "Get the attribute map of the given SXML element."
   [elem]
-  (second (normalize-1 elem)))
+  (nth (normalize-1 elem) 1))
 
 (defn children
   "Get the child nodes of the given SXML element."
   [elem]
-  (drop 2 (normalize-1 elem)))
+  (subvec (normalize-1 elem) 2))
 
 (defn normalize
   "Return the normalized, long form of the given SXML representation. All tag
