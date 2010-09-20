@@ -1,8 +1,8 @@
-========
-sxml-sax
-========
+=========
+sxml-jaxp
+=========
 
-**sxml-sax** is a library of tools for using SXML-inspired XML representations
+**sxml-jaxp** is a library of tools for using SXML-inspired XML representations
 with the Java XML infrastructure. It uses JAXP internally, so it does not
 depend on any particular XML library, although the author has personally tested
 it with the OpenJDK default Xerces/Xalan and Saxon 9.1.
@@ -52,7 +52,7 @@ keyword as ``tag``, where ``tag`` is a keyword denoting the element name,
 ``attrs`` is a *non-empty* map of keywords, and ``children`` is a *non-empty*
 sequence of child nodes.
 
-``sxml-sax`` provides the function ``normalize`` to convert SXML to normalized
+``sxml-jaxp`` provides the function ``normalize`` to convert SXML to normalized
 form, and ``simplify`` to convert to simplified form. Functions generally
 accept either form (or some mixture), but typically return normalized form.
 
@@ -62,18 +62,18 @@ accept either form (or some mixture), but typically return normalized form.
 Usage
 =====
 
-Here are some examples of using ``sxml-sax`` for various tasks. We'll assume
+Here are some examples of using ``sxml-jaxp`` for various tasks. We'll assume
 the following ``require``'s::
 
-  (require '[sxml-sax.core :as s]
-           '[sxml-sax.xslt :as t]
-           '[sxml-sax.xslt.lang :as xsl]
+  (require '[sxml-jaxp.core :as s]
+           '[sxml-jaxp.transform :as t]
+           '[sxml-jaxp.transform.xslt :as xsl]
            '[clojure.java.io :as io])
 
 Parsing XML to SXML
 -------------------
 
-You can use the ``sxml-sax.core/read-sxml`` function to read from some source
+You can use the ``sxml-jaxp.core/read-sxml`` function to read from some source
 of XML data and return it in SXML format::
 
   user=> (s/read-sxml "<greet>Hello world!</greet>")
@@ -112,7 +112,7 @@ they work on SXML that might not be normalized::
 Outputting to XML
 -----------------
 
-The ``sxml-sax.xslt/copy!`` function can be used to copy SXML into various
+The ``sxml-jaxp.xslt/copy!`` function can be used to copy SXML into various
 kinds of output "sinks". Here, we'll use a ``Writer``. Notice it returns the
 thing you passed as the "sink" so you can do more stuff with it::
 
@@ -131,9 +131,9 @@ string of XML::
 XSL Transforms
 --------------
 
-Transformations are performed with the ``sxml-sax.xslt/transform!`` function.
-This accepts a stylesheet, a source, and a result. I'll use the XSLT DSL
-(defined in ``sxml-sax.xslt.lang``) to create XSLT stylesheets. ::
+Transformations are performed with the ``sxml-jaxp.transform/transform!``
+function.  This accepts a stylesheet, a source, and a result. I'll use the XSLT
+DSL (defined in ``sxml-jaxp.transform.xslt``) to create XSLT stylesheets. ::
 
   user=> (t/transform! (xsl/stylesheet "1.0"
                          (xsl/match-template "/once-old"
@@ -194,13 +194,13 @@ invocation.
 
 .. [2] ``copy!`` actually recognizes the ``:sxml`` sink also, although I don't
    know why you'd ever need that; generally you'd want to use
-   ``sxml-sax.core/read-sxml`` which bypasses TrAX and reads the input directly
-   with SAX.
+   ``sxml-jaxp.core/read-sxml`` which bypasses TrAX and reads the input
+   directly with SAX.
 
 XSLT DSL
 ........
 
-The namespace ``sxml-sax.xslt.lang`` [3]_ defines a DSL for writing XSL
+The namespace ``sxml-jaxp.transform.xslt`` [3]_ defines a DSL for writing XSL
 transformation stylesheets in Clojure. This DSL outputs the stylesheets in SXML
 format. Here's the template we used in the last example::
 
@@ -261,8 +261,8 @@ There are a handful of exceptions:
   accepts as it's positional parameter the XPath expression appearing in the
   ``select`` attribute.
 
-.. [3] ``:use``'ing the ``sxml-sax.xslt.lang`` namespace should be done with
-   caution, as XSLT uses names for several instructions that collide with
+.. [3] ``:use``'ing the ``sxml-jaxp.transform.xslt`` namespace should be done
+   with caution, as XSLT uses names for several instructions that collide with
    identically-named Clojure core functions. Use ``:only``, ``:exclude``, or
    ``:refer-clojure`` to control these collisions if you absolutely must
    ``:use`` the XSLT DSL namespace.
@@ -270,7 +270,7 @@ There are a handful of exceptions:
 XML namespaces
 ==============
 
-``sxml-sax`` is XML-namespace-aware. As you've probably guessed from the last
+``sxml-jaxp`` is XML-namespace-aware. As you've probably guessed from the last
 section, you can specify a namespace prefix on a tag name in the same way as
 you would in regular XML, e.g. ``:xsl:stylesheet``, ``:xi:include``, or
 ``:fo:page-sequence``.
@@ -286,8 +286,8 @@ using ``xmlns`` attributes::
 These attributes are recognized as namespace prefix declarations and
 communicated to the various Java XML APIs as required.
 
-Whenever an SXML form is traversed by ``sxml-sax``, a map contained in
-``sxml-sax.core/*default-xmlns*`` is used to resolve un-declared namespace
+Whenever an SXML form is traversed by ``sxml-jaxp``, a map contained in
+``sxml-jaxp.core/*default-xmlns*`` is used to resolve un-declared namespace
 prefixes::
 
   user=> (binding [s/*default-xmlns* {nil "http://www.w3.org/1999/xhtml",
@@ -305,8 +305,8 @@ prefixes::
      <xi:include href="body.xml"></xi:include>
   </html>#<OutputStreamWriter java.io.OutputStreamWriter@484ae502>
 
-Note that for convenience, ``sxml-sax.xslt`` automatically declares the ``xsl``
-prefix whenever it parses a stylesheet that is expressed in SXML.
+Note that for convenience, ``sxml-jaxp.transform`` automatically declares the
+``xsl`` prefix whenever it parses a stylesheet that is expressed in SXML.
 
 Limitations and future work
 ===========================
@@ -315,9 +315,8 @@ Limitations and future work
   way to express a processing instruction in SXML. Advice and suggestions
   welcome.
 
-* The name ``sxml-sax`` is now a misnomer, the library provides access to many
-  parts of JAXP besides SAX. All the other library namespace name choices are
-  kinda poor too. Expect namespace upheaval and other mass hysteria.
+* The assignment of stuff to namespaces is kinda poor. Expect namespace
+  upheaval and other mass hysteria. **In progress**
 
 * Ad-hoc XML namespace syntax (``:xsl:value-of``) is probably bogus,
   considering changing to use real live Clojure keyword namespaces instead
@@ -332,6 +331,6 @@ Limitations and future work
 License
 =======
 
-``sxml-sax`` is Copyright (C) 2010 Kyle Schaffrick.
+``sxml-jaxp`` is Copyright (C) 2010 Kyle Schaffrick.
 
 Distributed under the Eclipse Public License, the same as Clojure.

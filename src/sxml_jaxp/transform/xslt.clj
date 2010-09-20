@@ -1,4 +1,4 @@
-(ns sxml-sax.xslt.lang
+(ns sxml-jaxp.transform.xslt
   "Syntactic sugar for constructing XSL templates in SXML."
   (:refer-clojure :exclude [comment key import sort]))
 

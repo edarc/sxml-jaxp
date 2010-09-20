@@ -1,7 +1,7 @@
-(ns sxml-sax.xslt
-  "Tools for using SXML to perform XSL Transformations."
-  (:require [sxml-sax.xslt.lang :as xsl])
-  (:require [sxml-sax.core :as sxml])
+(ns sxml-jaxp.transform
+  "Tools for using SXML to perform XML transformations."
+  (:require [sxml-jaxp.transform.xslt :as xsl])
+  (:require [sxml-jaxp.core :as sxml])
   (:import
     (javax.xml.transform TransformerFactory Transformer Templates Source
                          Result)
@@ -114,7 +114,7 @@
   simply copies the source to the result. You may pass :string as the result to
   have the output returned in string format (the default when no result
   argument is given), or :sxml to get the result in SXML format (in which case
-  you probably want to use sxml-sax.core/read-sxml which is likely to be more
+  you probably want to use sxml-jaxp.core/read-sxml which is likely to be more
   efficient)."
   ([source] (copy! source :string))
   ([source result] (transform! (identity-transformer) source result)))

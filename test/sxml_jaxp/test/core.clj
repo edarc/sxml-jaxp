@@ -1,5 +1,5 @@
-(ns sxml-sax.test.core
-  (:use [sxml-sax.core] :reload)
+(ns sxml-jaxp.test.core
+  (:use [sxml-jaxp.core] :reload)
   (:use [clojure.test])
   (:import
     (java.io InputStream OutputStream Reader Writer File StringReader

@@ -1,7 +1,7 @@
-(ns sxml-sax.test.xslt
-  (:use [sxml-sax.core] :reload)
-  (:use [sxml-sax.xslt] :reload)
-  (:require [sxml-sax.xslt.lang :as xsl] :reload)
+(ns sxml-jaxp.test.transform
+  (:use [sxml-jaxp.core] :reload)
+  (:use [sxml-jaxp.transform] :reload)
+  (:require [sxml-jaxp.transform.xslt :as xsl] :reload)
   (:use [clojure.test])
   (:import
     (javax.xml.transform.sax SAXSource)

@@ -1,5 +1,5 @@
-(ns sxml-sax.core
-  "Tools for using SXML-inspired XML representations with SAX2."
+(ns sxml-jaxp.core
+  "Tools for using SXML-inspired XML representations with JAXP."
   (:import
     (org.xml.sax SAXNotRecognizedException XMLReader InputSource
                  ContentHandler Attributes)
