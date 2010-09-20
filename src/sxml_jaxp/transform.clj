@@ -1,7 +1,7 @@
 (ns sxml-jaxp.transform
   "Tools for using SXML to perform XML transformations."
   (:require [sxml-jaxp.transform.xslt :as xsl])
-  (:require [sxml-jaxp.core :as sxml])
+  (:require [sxml-jaxp.sax :as sax])
   (:import
     (javax.xml.transform TransformerFactory Transformer Templates Source
                          Result)
@@ -30,7 +30,7 @@
   "Convert any sort of thing that might function as a source of XML into a
   Source object for transforms."
   class)
-(defmethod to-source ::sxml [sx] (sxml/sax-source sx))
+(defmethod to-source ::sxml [sx] (sax/sax-source sx))
 (defmethod to-source Source [s] s)
 (defmethod to-source InputStream [^InputStream ir] (StreamSource. ir))
 (defmethod to-source Reader [^Reader r] (StreamSource. r))
@@ -61,7 +61,7 @@
     ^{:type ::string-output} [result sw]))
 
 (defmethod to-result :sxml [_]
-  (let [[output result] (sxml/sax-result)]
+  (let [[output result] (sax/sax-result)]
     ^{:type ::sxml-output} [result output]))
 
 (defmulti from-result
@@ -78,8 +78,8 @@
   template can be used as the stylesheet argument to transform!, which will
   prevent it having to parse and compile the template on each invocation."
   [ss]
-  (binding [sxml/*default-xmlns* (assoc sxml/*default-xmlns* :xsl
-                                        "http://www.w3.org/1999/XSL/Transform")]
+  (binding [sax/*default-xmlns* (assoc sax/*default-xmlns* :xsl
+                                       "http://www.w3.org/1999/XSL/Transform")]
     (.. (TransformerFactory/newInstance)
       (newTemplates (to-source ss)))))
 
@@ -114,7 +114,7 @@
   simply copies the source to the result. You may pass :string as the result to
   have the output returned in string format (the default when no result
   argument is given), or :sxml to get the result in SXML format (in which case
-  you probably want to use sxml-jaxp.core/read-sxml which is likely to be more
+  you probably want to use sxml-jaxp.sax/read-sxml which is likely to be more
   efficient)."
   ([source] (copy! source :string))
   ([source result] (transform! (identity-transformer) source result)))

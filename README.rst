@@ -65,23 +65,24 @@ Usage
 Here are some examples of using ``sxml-jaxp`` for various tasks. We'll assume
 the following ``require``'s::
 
-  (require '[sxml-jaxp.core :as s]
-           '[sxml-jaxp.transform :as t]
+  (require '[sxml-jaxp.core :as core]
+           '[sxml-jaxp.sax :as sax]
+           '[sxml-jaxp.transform :as xfm]
            '[sxml-jaxp.transform.xslt :as xsl]
            '[clojure.java.io :as io])
 
 Parsing XML to SXML
 -------------------
 
-You can use the ``sxml-jaxp.core/read-sxml`` function to read from some source
+You can use the ``sxml-jaxp.sax/read-sxml`` function to read from some source
 of XML data and return it in SXML format::
 
-  user=> (s/read-sxml "<greet>Hello world!</greet>")
+  user=> (sax/read-sxml "<greet>Hello world!</greet>")
   [:greet {} "Hello world!"]
 
 You can use ``Reader``'s, ``InputStream``'s, and ``File``'s too. ::
 
-  user=> (s/read-sxml (java.io.StringReader. "<greet>Hello world!</greet>"))
+  user=> (sax/read-sxml (java.io.StringReader. "<greet>Hello world!</greet>"))
   [:greet {} "Hello world!"]
 
 Navigation helpers
@@ -92,11 +93,11 @@ of SXML elements easily. ::
 
   user=> (def fancy-hello [:greet {:language "en"} "Hello world!"])
   #'user/fancy-hello
-  user=> (s/tag fancy-hello)
+  user=> (core/tag fancy-hello)
   :greet
-  user=> (s/attrs fancy-hello)
+  user=> (core/attrs fancy-hello)
   {:language "en"}
-  user=> (s/children fancy-hello)
+  user=> (core/children fancy-hello)
   ("Hello world!")
 
 These are marginally more useful than regular vector access methods because
@@ -104,28 +105,28 @@ they work on SXML that might not be normalized::
 
   user=> (def simple-hello [:greet "Hello world!"])
   #'user/simple-hello
-  user=> (s/attrs simple-hello)
+  user=> (core/attrs simple-hello)
   {}
-  user=> (s/children simple-hello)
+  user=> (core/children simple-hello)
   ("Hello world!")
 
 Outputting to XML
 -----------------
 
-The ``sxml-jaxp.xslt/copy!`` function can be used to copy SXML into various
+The ``sxml-jaxp.transform/copy!`` function can be used to copy SXML into various
 kinds of output "sinks". Here, we'll use a ``Writer``. Notice it returns the
 thing you passed as the "sink" so you can do more stuff with it::
 
-  user=> (.toString (t/copy! fancy-hello (java.io.StringWriter.)))
+  user=> (.toString (xfm/copy! fancy-hello (java.io.StringWriter.)))
   "<?xml version=\"1.0\" encoding=\"UTF-8\"?><greet language=\"en\">Hello world!</greet>"
 
 ``copy!`` also recognizes the special sink ``:string``, which is the default
 when you don't provide a sink. [2]_ This causes it to return the source as a
 string of XML::
 
-  user=> (t/copy! fancy-hello :string)
+  user=> (xfm/copy! fancy-hello :string)
   "<?xml version=\"1.0\" encoding=\"UTF-8\"?><greet language=\"en\">Hello world!</greet>"
-  user=> (t/copy! fancy-hello)
+  user=> (xfm/copy! fancy-hello)
   "<?xml version=\"1.0\" encoding=\"UTF-8\"?><greet language=\"en\">Hello world!</greet>"
 
 XSL Transforms
@@ -135,10 +136,10 @@ Transformations are performed with the ``sxml-jaxp.transform/transform!``
 function.  This accepts a stylesheet, a source, and a result. I'll use the XSLT
 DSL (defined in ``sxml-jaxp.transform.xslt``) to create XSLT stylesheets. ::
 
-  user=> (t/transform! (xsl/stylesheet "1.0"
-                         (xsl/match-template "/once-old"
-                           [:new-again (xsl/copy-of "@*|node()")]))
-                       [:once-old "Hi!"])
+  user=> (xfm/transform! (xsl/stylesheet "1.0"
+                           (xsl/match-template "/once-old"
+                             [:new-again (xsl/copy-of "@*|node()")]))
+                         [:once-old "Hi!"])
   [:new-again {} "Hi!"]
 
 I didn't provide a target for the result, so it defaulted to the special target
@@ -149,7 +150,7 @@ Here's a more complex example, getting a seq of the latest article titles on
 Ars Technica using their RSS feed::
 
   user=> (def rss-title-tmpl
-           (t/compile-template
+           (xfm/compile-template
              (xsl/stylesheet "1.0"
                (xsl/match-template "/rss/channel/item"
                  [:link {:title "{title}"}])
@@ -158,8 +159,8 @@ Ars Technica using their RSS feed::
   #'user/rss-title-tmpl
   user=> (with-open [at-rss-in (io/input-stream
                                  "http://feeds.arstechnica.com/arstechnica/everything")]
-           (map (comp :title s/attrs)
-                (s/children (t/transform! rss-title-tmpl at-rss-in))))
+           (map (comp :title core/attrs)
+                (core/children (xfm/transform! rss-title-tmpl at-rss-in))))
   ("Week in Apple: OS X beta anniversary, nano review, HDR photography"
    "Week in tech: first sale fail, DRM fail, adult services fail"
    "Week in gaming: Halo Reach! Civilization! Hunting! Come in! "
@@ -194,8 +195,8 @@ invocation.
 
 .. [2] ``copy!`` actually recognizes the ``:sxml`` sink also, although I don't
    know why you'd ever need that; generally you'd want to use
-   ``sxml-jaxp.core/read-sxml`` which bypasses TrAX and reads the input
-   directly with SAX.
+   ``sxml-jaxp.sax/read-sxml`` which bypasses TrAX and reads the input directly
+   with SAX.
 
 XSLT DSL
 ........
@@ -286,16 +287,18 @@ using ``xmlns`` attributes::
 These attributes are recognized as namespace prefix declarations and
 communicated to the various Java XML APIs as required.
 
-Whenever an SXML form is traversed by ``sxml-jaxp``, a map contained in
-``sxml-jaxp.core/*default-xmlns*`` is used to resolve un-declared namespace
-prefixes::
+Whenever an SXML form is traversed by ``sxml-jaxp``'s SAX reader, a map
+contained in ``sxml-jaxp.sax/*default-xmlns*`` is used to resolve un-declared
+namespace prefixes::
 
-  user=> (binding [s/*default-xmlns* {nil "http://www.w3.org/1999/xhtml",
-                                      :xi "http://www.w3.org/2001/XInclude"}]
-           (t/copy! [:html
-                     [:head [:title "Namespace example"]]
-                     [:xi:include {:href "body.xml"}]]
-                    *out*))
+  user=> (use '[sxml-jaxp.sax :only [*default-xmlns*]])
+  nil
+  user=> (binding [*default-xmlns* {nil "http://www.w3.org/1999/xhtml",
+                                    :xi "http://www.w3.org/2001/XInclude"}]
+           (xfm/copy! [:html
+                       [:head [:title "Namespace example"]]
+                       [:xi:include {:href "body.xml"}]]
+                      *out*))
   <?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"
                                               xmlns:xi="http://www.w3.org/2001/XInclude">
      <head>

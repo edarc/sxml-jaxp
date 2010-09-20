@@ -1,5 +1,6 @@
 (ns sxml-jaxp.test.transform
-  (:use [sxml-jaxp.core] :reload)
+  (:use [sxml-jaxp.core :only [normalize]] :reload)
+  (:use [sxml-jaxp.sax :only [sax-source sax-result *default-xmlns*]] :reload)
   (:use [sxml-jaxp.transform] :reload)
   (:require [sxml-jaxp.transform.xslt :as xsl] :reload)
   (:use [clojure.test])
