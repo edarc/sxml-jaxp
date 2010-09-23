@@ -1,7 +1,7 @@
 (ns sxml-jaxp.sax
   "Implements the details of parsing and emitting SXML via SAX."
   (:use [sxml-jaxp.util :only [any-of]])
-  (:use [sxml-jaxp.core :only [normalize xmlnsify apply-namespaces de-xmlnsify
+  (:use [sxml-jaxp.core :only [normalize xmlnsify apply-namespaces prefix-decls
                                attr-is-xmlns?]])
   (:import
     (org.xml.sax SAXNotRecognizedException ContentHandler XMLReader InputSource
@@ -28,26 +28,26 @@
 (defn- qualify-name
   "Accepts a keyword representing a tag or attribute name, and returns [qname
   lname uri prefix-kw], where qname is the qualified name, lname is the local
-  name, uri is the URI of the namespace it belongs to, as defined by the
-  current value of *xmlns*, and prefix-kw is a keywordized version of the
-  namespace prefix."
-  [kw]
+  name, uri is the URI of the namespace it belongs to as defined by the prefix
+  mappings in prefixes, and prefix-kw is a keywordized version of the namespace
+  prefix."
+  [prefixes kw]
   (let [qname          (name kw)
         [before after] (.split qname ":")
         prefix-kw      (when after (keyword before))
         lname          (or after qname)
         uri            (if (attr-is-xmlns? kw) ""
-                         (or (*xmlns* prefix-kw) ""))]
+                         (or (prefixes prefix-kw) ""))]
     [qname lname uri prefix-kw]))
 
 (defn- make-sax-attributes
   "Given an SXML attribute map, produce a SAX Attributes instance representing
-  them. The function must also know the tag's namespace prefix, so that
-  unqualified attributes will be assigned to the correct namespace URI."
-  [tag-prefix attr-map]
+  them. The function must also know the current namespace prefixes, so that
+  qualified attributes will be assigned to the correct namespace URI."
+  [prefixes attr-map]
   (let [attrs (AttributesImpl.)]
     (doseq [[attr-kw attr-val] attr-map]
-      (let [[q l u _] (qualify-name attr-kw)]
+      (let [[q l u _] (qualify-name prefixes attr-kw)]
         (.addAttribute attrs u l q "CDATA" attr-val)))
     attrs))
 
@@ -58,50 +58,62 @@
   (cond
     ((any-of vector? seq?) form)
     (let [[tag attrs & children] form
-          xmlns-decls (into {} (for [k (filter attr-is-xmlns? (keys attrs))]
-                                 [(de-xmlnsify k) (attrs k)]))]
-      (binding [*xmlns* (merge *xmlns* xmlns-decls)]
-        (let [xmlns *xmlns*]
-          (concat
-            (for [[m _] xmlns-decls] [:start-prefix m (xmlns m)])
-            [[:start-element tag attrs]]
-            (apply concat (for [child children] (sax-event-seq* child)))
-            [[:end-element tag]]
-            (for [[m _] xmlns-decls] [:end-prefix m])))))
+          new-prefixes           (prefix-decls form)]
+      (concat
+        (for [[m u] new-prefixes] [:start-prefix m u])
+        (when (seq new-prefixes)
+          [[:prefix-map (merge *xmlns* new-prefixes)]])
+        [[:start-element tag attrs]]
+        (binding [*xmlns* (merge *xmlns* new-prefixes)]
+          (apply concat (for [child children] (sax-event-seq* child))))
+        [[:end-element tag]]
+        (when (seq new-prefixes)
+          [[:prefix-map *xmlns*]])
+        (for [[m _] new-prefixes] [:end-prefix m])))
     (string? form) [[:text-node form]]
     :else (recur (str form))))
 
-(def ^{:doc "Given an SXML form, produce a sequence of events corresponding to
-            the SAX events that represent the corresponding XML."
-       :arglists '([form])}
-  sax-event-seq (comp sax-event-seq* normalize))
+(defn sax-event-seq
+  "Given an SXML form (which must have a root element), produce a sequence of
+  events corresponding to the SAX events that represent the corresponding XML."
+  [form]
+  (-> form normalize (apply-namespaces *default-xmlns*) sax-event-seq*))
 
 (defn- fire-events*
   "Given a SAX event seq and a SAX ContentHandler, iterate through the events,
   firing the appropriate handler methods. This does not fire start and end
   document events."
-  [event-seq ^ContentHandler ch]
-  (doseq [[ev & params] event-seq]
-    (case ev
-      :start-prefix
-      (let [[prefix uri] params
-            prefix (if prefix (name prefix) "")]
-        (.startPrefixMapping ch prefix uri))
-      :start-element
-      (let [[tag attrs] params
-            [q l u tag-prefix] (qualify-name tag)]
-        (.startElement ch u l q (make-sax-attributes tag-prefix attrs)))
-      :text-node
-      (let [^String text (first params)]
-        (.characters ch (char-array text) 0 (.length text)))
-      :end-element
-      (let [tag (first params)
-            [q l u _] (qualify-name tag)]
-        (.endElement ch u l q))
-      :end-prefix
-      (let [prefix (first params)
-            prefix (if prefix (name prefix) "")]
-        (.endPrefixMapping ch prefix)))))
+  ([event-seq ^ContentHandler ch] (fire-events* event-seq ch {}))
+  ([event-seq ^ContentHandler ch prefix-map]
+   (when-let [[ev & params] (first event-seq)]
+     (case ev
+       :start-prefix
+       (let [[prefix uri] params
+             prefix (if prefix (name prefix) "")]
+         (.startPrefixMapping ch prefix uri)
+         (recur (next event-seq) ch prefix-map))
+       :start-element
+       (let [[tag attrs] params
+             [q l u _] (qualify-name prefix-map tag)]
+         (.startElement ch u l q (make-sax-attributes prefix-map attrs))
+         (recur (next event-seq) ch prefix-map))
+       :text-node
+       (let [^String text (first params)]
+         (.characters ch (char-array text) 0 (.length text))
+         (recur (next event-seq) ch prefix-map))
+       :end-element
+       (let [tag (first params)
+             [q l u _] (qualify-name prefix-map tag)]
+         (.endElement ch u l q)
+         (recur (next event-seq) ch prefix-map))
+       :end-prefix
+       (let [prefix (first params)
+             prefix (if prefix (name prefix) "")]
+         (.endPrefixMapping ch prefix)
+         (recur (next event-seq) ch prefix-map))
+       :prefix-map
+       (let [new-prefix-map (first params)]
+         (recur (next event-seq) ch new-prefix-map))))))
 
 (defn fire-events
   "Applies default namespace declarations, fires events appropriate for the
@@ -109,14 +121,9 @@
   generate all other SAX events."
   [form ^ContentHandler ch]
   (.startDocument ch)
-  (binding [*xmlns* *default-xmlns*]
-    (if (= (type form) ::compiled-sxml)
-      (fire-events* form ch)
-      (-> form
-        normalize
-        (apply-namespaces *xmlns*)
-        sax-event-seq*
-        (fire-events* ch))))
+  (if (= (type form) ::compiled-sxml)
+    (fire-events* form ch)
+    (fire-events* (sax-event-seq form) ch))
   (.endDocument ch))
 
 (defn sax-reader

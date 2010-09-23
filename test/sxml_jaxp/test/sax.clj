@@ -7,9 +7,6 @@
 
 (deftest event-generation "generation of SAX events from SXML"
   (let [sax-event-seq (comp sax-event-seq normalize)]
-    (is (= (sax-event-seq "foo")
-           [[:text-node "foo"]])
-        "non-markup")
     (is (= (sax-event-seq :t)
            [[:start-element :t {}]
             [:end-element :t]])
@@ -49,10 +46,26 @@
         "nested text node")
     (is (= (sax-event-seq [:root {:xmlns:foo "foo"}])
            [[:start-prefix :foo "foo"]
+            [:prefix-map {:foo "foo"}]
             [:start-element :root {:xmlns:foo "foo"}]
             [:end-element :root]
+            [:prefix-map {}]
             [:end-prefix :foo]])
-        "namespace declaration")))
+        "namespace declaration")
+    (is (= (sax-event-seq [:root {:xmlns:foo "foo"} [:bar {:xmlns:foo "masked"}]])
+           [[:start-prefix :foo "foo"]
+            [:prefix-map {:foo "foo"}]
+            [:start-element :root {:xmlns:foo "foo"}]
+            [:start-prefix :foo "masked"]
+            [:prefix-map {:foo "masked"}]
+            [:start-element :bar {:xmlns:foo "masked"}]
+            [:end-element :bar]
+            [:prefix-map {:foo "foo"}]
+            [:end-prefix :foo]
+            [:end-element :root]
+            [:prefix-map {}]
+            [:end-prefix :foo]])
+        "masked namespace declaration")))
 
 (deftest shift-reduce "SXML shift-reduce parser"
   (is (= "foo"
