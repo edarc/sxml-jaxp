@@ -2,6 +2,28 @@
   "Tools for using SXML-inspired XML representations with JAXP."
   (:use [sxml-jaxp.util :only [any-of]]))
 
+(defn attr-is-xmlns?
+  "Predicate which returns true if the given keyword (corresponding to an
+  attribute name) is an XML namespace declaration."
+  [kw]
+  (or (= :xmlns kw)
+      (.startsWith (name kw) "xmlns:")))
+
+(defn xmlnsify
+  "Converts a keyword naming an XML namespace prefix and converts it into a
+  keyword representing the attribute name of an xmlns declaration."
+  [kw]
+  (if kw
+    (keyword (str "xmlns:" (name kw)))
+    :xmlns))
+
+(defn de-xmlnsify
+  "Accepts a keyword corresponding to an xmlns attribute and returns a keyword
+  representing the namespace prefix itself."
+  [kw]
+  (when-not (= kw :xmlns)
+    (keyword (.substring (name kw) 6))))
+
 (defn normalize-1
   "Return the given SXML representation with the top level element in
   normalized, long form."
@@ -25,6 +47,13 @@
   "Get the attribute map of the given SXML element."
   [elem]
   (nth (normalize-1 elem) 1))
+
+(defn prefix-decls
+  "Get any XML namespace prefix declarations on the given SXML element."
+  [elem]
+  (let [elem-attrs (attrs elem)]
+    (into {} (for [k (filter attr-is-xmlns? (keys elem-attrs))]
+               [(de-xmlnsify k) (elem-attrs k)]))))
 
 (defn children
   "Get the child nodes of the given SXML element."
@@ -68,21 +97,6 @@
        :arglists '([form])}
   simplify (comp simplify* normalize))
 
-(defn attr-is-xmlns?
-  "Predicate which returns true if the given keyword (corresponding to an
-  attribute name) is an XML namespace declaration."
-  [kw]
-  (or (= :xmlns kw)
-      (.startsWith (name kw) "xmlns:")))
-
-(defn xmlnsify
-  "Converts a keyword naming an XML namespace prefix and converts it into a
-  keyword representing the attribute name of an xmlns declaration."
-  [kw]
-  (if kw
-    (keyword (str "xmlns:" (name kw)))
-    :xmlns))
-
 (defn apply-namespaces
   "Inserts xmlns attributes into the root element of form which declare the
   namespaces defined in xmlns-map. Assumes form is normalized."
@@ -90,10 +104,3 @@
   (let [xmlns (into {} (for [[k v] xmlns-map] [(xmlnsify k) v]))
         [root-tag attrs & content] form]
     (concat [root-tag] [(merge xmlns attrs)] content)))
-
-(defn de-xmlnsify
-  "Accepts a keyword corresponding to an xmlns attribute and returns a keyword
-  representing the namespace prefix itself."
-  [kw]
-  (when-not (= kw :xmlns)
-    (keyword (.substring (name kw) 6))))
