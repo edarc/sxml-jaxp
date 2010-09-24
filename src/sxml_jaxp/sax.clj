@@ -1,6 +1,5 @@
 (ns sxml-jaxp.sax
   "Implements the details of parsing and emitting SXML via SAX."
-  (:use [sxml-jaxp.util :only [any-of]])
   (:use [sxml-jaxp.core :only [normalize xmlnsify apply-namespaces prefix-decls
                                attr-is-xmlns?]])
   (:import
@@ -48,7 +47,7 @@
   (let [attrs (AttributesImpl.)]
     (doseq [[attr-kw attr-val] attr-map]
       (let [[q l u _] (qualify-name prefixes attr-kw)]
-        (.addAttribute attrs u l q "CDATA" attr-val)))
+        (.addAttribute attrs u l q "CDATA" (str attr-val))))
     attrs))
 
 (defn- sax-event-seq*
@@ -56,7 +55,7 @@
   the SAX events that represent the corresponding XML."
   [form]
   (cond
-    ((any-of vector? seq?) form)
+    (vector? form)
     (let [[tag attrs & children] form
           new-prefixes           (prefix-decls form)]
       (concat
@@ -70,8 +69,7 @@
         (when (seq new-prefixes)
           [[:prefix-map *xmlns*]])
         (for [[m _] new-prefixes] [:end-prefix m])))
-    (string? form) [[:text-node form]]
-    :else (recur (str form))))
+    :else [[:text-node form]]))
 
 (defn sax-event-seq
   "Given an SXML form (which must have a root element), produce a sequence of
@@ -98,7 +96,7 @@
          (.startElement ch u l q (make-sax-attributes prefix-map attrs))
          (recur (next event-seq) ch prefix-map))
        :text-node
-       (let [^String text (first params)]
+       (let [^String text (str (first params))]
          (.characters ch (char-array text) 0 (.length text))
          (recur (next event-seq) ch prefix-map))
        :end-element
@@ -296,6 +294,15 @@
   as SAX events."
   [form]
   (with-meta (vec (sax-event-seq form)) {:type ::compiled-sxml}))
+
+(defmacro compiled-sxml
+  "This macro will pre-compile, as a speed optimization, an SXML literal that
+  is to be used as input to a JAXP API. Expressions may appear in the SXML form
+  in place of text nodes, and cannot affect the element structure. Attributes
+  must be literal maps for now, but may contain expressions in both key and
+  value positions."
+  [form]
+  (compile-sxml form))
 
 (derive clojure.lang.IPersistentVector ::sxml)
 

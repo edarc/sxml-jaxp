@@ -103,4 +103,4 @@
   [form xmlns-map]
   (let [xmlns (into {} (for [[k v] xmlns-map] [(xmlnsify k) v]))
         [root-tag attrs & content] form]
-    (concat [root-tag] [(merge xmlns attrs)] content)))
+    (vec (concat [root-tag] [(merge xmlns attrs)] content))))

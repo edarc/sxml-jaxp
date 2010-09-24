@@ -65,7 +65,25 @@
             [:end-element :root]
             [:prefix-map {}]
             [:end-prefix :foo]])
-        "masked namespace declaration")))
+        "masked namespace declaration")
+    (is (= (sax-event-seq [:root 'foo])
+           [[:start-element :root {}]
+            [:text-node 'foo]
+            [:end-element :root]])
+        "nested symbol (precompilation)")
+    (is (= (sax-event-seq [:root `(str (+ 1 1))])
+           [[:start-element :root {}]
+            [:text-node `(str (+ 1 1))]
+            [:end-element :root]])
+        "nested expression (precompilation)")
+    (is (= (sax-event-seq [:root {:attr 'foo}])
+           [[:start-element :root {:attr 'foo}]
+            [:end-element :root]])
+        "attribute symbol (precompilation)")
+    (is (= (sax-event-seq [:root {:attr `(str (+ 1 1))}])
+           [[:start-element :root {:attr `(str (+ 1 1))}]
+            [:end-element :root]])
+        "attribute expression (precompilation)")))
 
 (deftest shift-reduce "SXML shift-reduce parser"
   (is (= "foo"
