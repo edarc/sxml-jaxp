@@ -8,7 +8,7 @@
   (let [tag (if (= '_ tag) fn-name tag)]
     `(defn ~fn-name
        ~args
-       (vec (concat [~(keyword (str "xsl:" (name tag)))]
+       (vec (concat [~(keyword "xsl" (name tag))]
                     ~@expansion)))))
 
 (defmacro ^{:private true} def-trivial-tags
@@ -102,6 +102,6 @@
                                      [consequent]
                                      consequent)]
                   (if (= :else condition)
-                    (vec (concat [:xsl:otherwise] consequent))
-                    (vec (concat [:xsl:when {:test condition}] consequent)))))]
-    (vec (concat [:xsl:choose] clauses))))
+                    (vec (concat [:xsl/otherwise] consequent))
+                    (vec (concat [:xsl/when {:test condition}] consequent)))))]
+    (vec (concat [:xsl/choose] clauses))))

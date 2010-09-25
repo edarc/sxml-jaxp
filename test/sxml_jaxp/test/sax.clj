@@ -44,21 +44,21 @@
             [:text-node "foo"]
             [:end-element :root]])
         "nested text node")
-    (is (= (sax-event-seq [:root {:xmlns:foo "foo"}])
+    (is (= (sax-event-seq [:root {:xmlns/foo "foo"}])
            [[:start-prefix :foo "foo"]
             [:prefix-map {:foo "foo"}]
-            [:start-element :root {:xmlns:foo "foo"}]
+            [:start-element :root {:xmlns/foo "foo"}]
             [:end-element :root]
             [:prefix-map {}]
             [:end-prefix :foo]])
         "namespace declaration")
-    (is (= (sax-event-seq [:root {:xmlns:foo "foo"} [:bar {:xmlns:foo "masked"}]])
+    (is (= (sax-event-seq [:root {:xmlns/foo "foo"} [:bar {:xmlns/foo "masked"}]])
            [[:start-prefix :foo "foo"]
             [:prefix-map {:foo "foo"}]
-            [:start-element :root {:xmlns:foo "foo"}]
+            [:start-element :root {:xmlns/foo "foo"}]
             [:start-prefix :foo "masked"]
             [:prefix-map {:foo "masked"}]
-            [:start-element :bar {:xmlns:foo "masked"}]
+            [:start-element :bar {:xmlns/foo "masked"}]
             [:end-element :bar]
             [:prefix-map {:foo "foo"}]
             [:end-prefix :foo]
@@ -140,7 +140,7 @@
            (reduce-element :root)
            first))
       "nested text node")
-  (is (= (normalize [:root {:xmlns:foo "foo"}])
+  (is (= (normalize [:root {:xmlns/foo "foo"}])
          (-> ()
            (push-prefix :foo "foo")
            (push-element :root {})
@@ -165,7 +165,7 @@
     [:root {:foo "bar"}]
     [:root [:bob {:foo "bar"}]]
     [:root "foo"]
-    [:root {:xmlns:foo "foo"}]
+    [:root {:xmlns/foo "foo"}]
     [:root
      [:bob "hello bob"]
      "and then"
@@ -180,3 +180,10 @@
          string-input
          (StringReader. string-input)
          (ByteArrayInputStream. (.getBytes string-input)))))
+
+(deftest xml-namespaces "XML namespace input"
+  (is (= (simplify (read-sxml "<myns:root><a/><b/></myns:root>"))
+         [:myns/root :a :b]))
+  (is (= (simplify (read-sxml "<myns:root
+                              otherns:bar=\"bar\"><a/></myns:root>"))
+         [:myns/root {:otherns/bar "bar"} :a])))

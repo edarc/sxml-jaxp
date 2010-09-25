@@ -20,7 +20,7 @@ tags, and attributes. [1]_ ::
   [:item {}
     [:title {} "Memorandum"]
     [:author {} "tyler.durden@paperstreetsoap.com"]
-    [:media:content {:url "http://paperstreetsoap.com/snowflake.jpg",
+    [:media/content {:url "http://paperstreetsoap.com/snowflake.jpg",
                      :type "image/jpeg",
                      :height "100",
                      :width "100"}]
@@ -38,7 +38,7 @@ There is also a *simplified* form::
   [:item
     [:title "Memorandum"]
     [:author "tyler.durden@paperstreetsoap.com"]
-    [:media:content {:url "http://paperstreetsoap.com/snowflake.jpg",
+    [:media/content {:url "http://paperstreetsoap.com/snowflake.jpg",
                      :type "image/jpeg",
                      :height "100",
                      :width "100"}]
@@ -98,7 +98,7 @@ of SXML elements easily. ::
   user=> (core/attrs fancy-hello)
   {:language "en"}
   user=> (core/children fancy-hello)
-  ("Hello world!")
+  ["Hello world!"]
 
 These are marginally more useful than regular vector access methods because
 they work on SXML that might not be normalized::
@@ -108,7 +108,7 @@ they work on SXML that might not be normalized::
   user=> (core/attrs simple-hello)
   {}
   user=> (core/children simple-hello)
-  ("Hello world!")
+  ["Hello world!"]
 
 Outputting to XML
 -----------------
@@ -210,14 +210,14 @@ format. Here's the template we used in the last example::
              [:link {:title "{title}"}])
            (xsl/match-template "/rss"
              [:items (xsl/apply-templates-to "channel/item")]))
-  [:xsl:stylesheet
+  [:xsl/stylesheet
    {:version "1.0"}
-   [:xsl:template
+   [:xsl/template
     {:match "/rss/channel/item"}
     [:link {:title "{title}"}]]
-   [:xsl:template
+   [:xsl/template
     {:match "/rss"}
-    [:items [:xsl:apply-templates {:select "channel/item"}]]]]
+    [:items [:xsl/apply-templates {:select "channel/item"}]]]]
 
 It does not abstract XSLT very much, except for defining some instructions to
 accept positional parameters when they are otherwise always required as
@@ -246,10 +246,10 @@ There are a handful of exceptions:
              "foo" (xsl/value-of "foo")
              "bar" :bar
              :else [[:foo "bar"] [:baz "baz"]])
-    [:xsl:choose
-     [:xsl:when {:test "foo"} [:xsl:value-of {:select "foo"}]]
-     [:xsl:when {:test "bar"} :bar]
-     [:xsl:otherwise [:foo "bar"] [:baz "baz"]]]
+    [:xsl/choose
+     [:xsl/when {:test "foo"} [:xsl/value-of {:select "foo"}]]
+     [:xsl/when {:test "bar"} :bar]
+     [:xsl/otherwise [:foo "bar"] [:baz "baz"]]]
 
 * ``<xsl:if />`` is exposed as ``if*``. Beware that it behaves like XSLT
   ``<xsl:if />`` and does not accept an alternate expression like Clojure's
@@ -272,17 +272,16 @@ XML namespaces
 ==============
 
 ``sxml-jaxp`` is XML-namespace-aware. As you've probably guessed from the last
-section, you can specify a namespace prefix on a tag name in the same way as
-you would in regular XML, e.g. ``:xsl:stylesheet``, ``:xi:include``, or
-``:fo:page-sequence``.
+section, namespaces on keywords in SXML are interpreted as XML namespace
+prefixes, e.g. ``:xsl/stylesheet``, ``:xi/include``, or ``:fo/page-sequence``.
 
 Namespace prefix declarations are also specified in an analogous way to XML:
 using ``xmlns`` attributes::
 
   [:html {:xmlns "http://www.w3.org/1999/xhtml",
-          :xmlns:xi "http://www.w3.org/2001/XInclude"}
+          :xmlns/xi "http://www.w3.org/2001/XInclude"}
    [:head [:title "Namespace example"]]
-   [:xi:include {:href "body.xml"}]]
+   [:xi/include {:href "body.xml"}]]
 
 These attributes are recognized as namespace prefix declarations and
 communicated to the various Java XML APIs as required.
@@ -297,7 +296,7 @@ namespace prefixes::
                                     :xi "http://www.w3.org/2001/XInclude"}]
            (xfm/copy! [:html
                        [:head [:title "Namespace example"]]
-                       [:xi:include {:href "body.xml"}]]
+                       [:xi/include {:href "body.xml"}]]
                       *out*))
   <?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"
                                               xmlns:xi="http://www.w3.org/2001/XInclude">
@@ -318,18 +317,17 @@ Limitations and future work
   way to express a processing instruction in SXML. Advice and suggestions
   welcome.
 
-* The assignment of stuff to namespaces is kinda poor. Expect namespace
-  upheaval and other mass hysteria. **In progress**
-
-* Ad-hoc XML namespace syntax (``:xsl:value-of``) is probably bogus,
-  considering changing to use real live Clojure keyword namespaces instead
-  (``:xsl/value-of``).
-
 * XPath support would be pretty awesome.
 
 * With the current syntax, manipulating SXML forms by hand in the presence of
   XML namespace declarations is a pretty nasty affair. The library should
   provide help with this.
+
+* Provide a Hiccup_ compatibility module, for easily writing and processsing
+  XHTML and XHTML-generating templates with JAXP. In particular, the
+  ``:tag#id.class.class`` syntax is quite useful for this.
+
+.. _Hiccup: [http://github.com/weavejester/hiccup]
 
 License
 =======

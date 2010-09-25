@@ -31,13 +31,23 @@
   mappings in prefixes, and prefix-kw is a keywordized version of the namespace
   prefix."
   [prefixes kw]
-  (let [qname          (name kw)
-        [before after] (.split qname ":")
-        prefix-kw      (when after (keyword before))
-        lname          (or after qname)
+  (let [lname          (name kw)
+        prefix         (namespace kw)
+        qname          (if prefix
+                         (str prefix ":" lname)
+                         lname)
+        prefix-kw      (keyword prefix)
         uri            (if (attr-is-xmlns? kw) ""
                          (or (prefixes prefix-kw) ""))]
     [qname lname uri prefix-kw]))
+
+(defn- qname-to-kw
+  "Convert an XML qualified name to a keyword."
+  [qn]
+  (let [[before after] (.split qn ":")
+        prefix         (when after before)
+        lname          (or after before)]
+    (keyword prefix lname)))
 
 (defn- make-sax-attributes
   "Given an SXML attribute map, produce a SAX Attributes instance representing
@@ -253,7 +263,7 @@
   "Convert a SAX2 Attributes object into an SXML attribute map."
   [^Attributes attrs]
   (into {} (for [index (range (.getLength attrs))]
-             [(keyword (.getQName attrs index))
+             [(qname-to-kw (.getQName attrs index))
               (.getValue attrs ^Integer index)])))
 
 (defn sax-handler
@@ -272,7 +282,7 @@
        (startPrefixMapping [_ prefix uri]
           (swap! sxml-stack push-prefix (keyword prefix) uri))
        (startElement [_ _ _ qname attrs]
-          (swap! sxml-stack push-element (keyword qname)
+          (swap! sxml-stack push-element (qname-to-kw qname)
                  (extract-sax-attributes attrs)))
        (characters [_ ch start length]
           (swap! sxml-stack push-text (String. ch start length)))
@@ -281,7 +291,7 @@
        (setDocumentLocator [_ _] nil)
        (skippedEntity [_ _] nil)
        (endElement [_ _ _ qname]
-          (swap! sxml-stack reduce-element (keyword qname)))
+          (swap! sxml-stack reduce-element (qname-to-kw qname)))
        (endPrefixMapping [_ _] nil)
        (endDocument [_]
           (swap! sxml-stack first)))]))

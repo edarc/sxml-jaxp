@@ -70,9 +70,10 @@
              @output)
            (normalize [:root :a :b :c])))))
 
+(defn exclude-?xml [s] (re-find #"<[^?].*[^?]>" s))
+
 (deftest sxml-output "copying to various sinks"
   (let [p (fn [r] (copy! [:root :a :b :c] r))
-        exclude-?xml (fn [s] (re-find #"<[^?].*[^?]>" s))
         expect-string "<root><a/><b/><c/></root>"]
     (is (= (exclude-?xml (p :string))
            expect-string))
@@ -80,3 +81,9 @@
            expect-string))
     (is (= (exclude-?xml (.toString (p (ByteArrayOutputStream.))))
            expect-string))))
+
+(deftest xml-namespaces "XML namespace output"
+  (is (= (exclude-?xml (copy! [:myns/root :a :b :c]))
+         "<myns:root><a/><b/><c/></myns:root>"))
+  (is (= (exclude-?xml (copy! [:myns/root {:otherns/bar "bar"} :a]))
+         "<myns:root otherns:bar=\"bar\"><a/></myns:root>")))

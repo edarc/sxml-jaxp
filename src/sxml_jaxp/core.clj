@@ -7,14 +7,14 @@
   attribute name) is an XML namespace declaration."
   [kw]
   (or (= :xmlns kw)
-      (.startsWith (name kw) "xmlns:")))
+      (= "xmlns" (namespace kw))))
 
 (defn xmlnsify
   "Converts a keyword naming an XML namespace prefix and converts it into a
   keyword representing the attribute name of an xmlns declaration."
   [kw]
   (if kw
-    (keyword (str "xmlns:" (name kw)))
+    (keyword "xmlns" (name kw))
     :xmlns))
 
 (defn de-xmlnsify
@@ -22,7 +22,7 @@
   representing the namespace prefix itself."
   [kw]
   (when-not (= kw :xmlns)
-    (keyword (.substring (name kw) 6))))
+    (keyword (name kw))))
 
 (defn normalize-1
   "Return the given SXML representation with the top level element in
