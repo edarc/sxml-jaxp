@@ -52,23 +52,28 @@
 
 (defn- sax-event-seq*
   "Given a normalized SXML form, produce a sequence of events corresponding to
-  the SAX events that represent the corresponding XML."
+  the SAX events that represent the equivalent XML."
   [form]
   (cond
     (vector? form)
     (let [[tag attrs & children] form
-          new-prefixes           (prefix-decls form)]
-      (concat
-        (for [[m u] new-prefixes] [:start-prefix m u])
-        (when (seq new-prefixes)
-          [[:prefix-map (merge *xmlns* new-prefixes)]])
-        [[:start-element tag attrs]]
-        (binding [*xmlns* (merge *xmlns* new-prefixes)]
-          (apply concat (for [child children] (sax-event-seq* child))))
-        [[:end-element tag]]
-        (when (seq new-prefixes)
-          [[:prefix-map *xmlns*]])
-        (for [[m _] new-prefixes] [:end-prefix m])))
+          new-prefixes           (prefix-decls form)
+          merged-prefixes        (merge *xmlns* new-prefixes)
+          ev (reduce conj! (transient [])
+                     (for [[m u] new-prefixes] [:start-prefix m u]))
+          ev (if (seq new-prefixes)
+               (conj! ev [:prefix-map merged-prefixes])
+               ev)
+          ev (conj! ev [:start-element tag attrs])
+          ev (binding [*xmlns* merged-prefixes]
+               (reduce (partial reduce conj!) ev
+                       (map sax-event-seq* children)))
+          ev (conj! ev [:end-element tag])
+          ev (if (seq new-prefixes)
+               (conj! ev [:prefix-map *xmlns*])
+               ev)
+          ev (reduce conj! ev (for [[m _] new-prefixes] [:end-prefix m]))]
+      (persistent! ev))
     :else [[:text-node form]]))
 
 (defn sax-event-seq
@@ -97,7 +102,7 @@
          (recur (next event-seq) ch prefix-map))
        :text-node
        (let [^String text (str (first params))]
-         (.characters ch (char-array text) 0 (.length text))
+         (.characters ch (.toCharArray text) 0 (.length text))
          (recur (next event-seq) ch prefix-map))
        :end-element
        (let [tag (first params)
