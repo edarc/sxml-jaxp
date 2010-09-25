@@ -310,6 +310,86 @@ namespace prefixes::
 Note that for convenience, ``sxml-jaxp.transform`` automatically declares the
 ``xsl`` prefix whenever it parses a stylesheet that is expressed in SXML.
 
+SAX event filters
+=================
+
+The ``sxml-jaxp.sax.filter`` module allows filters to be inserted which operate
+on the SAX event seq [4]_ generated when SXML is fed as input into JAXP. This
+API is experimental, but an example application of this is the Hiccup filter in
+``sxml-jaxp.sax.filter.hiccup``, which allows writing XHTML ``id`` and
+``class`` attributes using Hiccup's shortcut syntax. Here we'll use
+``xfm/copy!``'s ``:sxml`` target to help make it clearer what's going on::
+
+  user=> (use '[sxml-jaxp.sax.filter]
+              '[sxml-jaxp.sax.filter.hiccup])
+  nil
+  user=> (def hiccup-example
+           [:html
+            [:div#main
+             [:p.example.first "An example"]
+             [:p.example "Another example"]]])
+  #'user/hiccup-example
+  user=> (xfm/copy! (filter-with [hiccup] hiccup-example) :sxml)
+  [:html
+   {}
+   [:div
+    {:id "main"}
+    [:p {:class "example first"} "An example"]
+    [:p {:class "example"} "Another example"]]]
+
+If an ``:id`` key appears in an element's attribute map, it overrides the
+Hiccup-specified one. If a ``:class`` key is present in the attribute map, it
+may be a HTML-style space-delimited string, or a set of strings. The class
+names so specified are unioned with the Hiccup-specified classes. ::
+
+  user=> (xfm/copy! (filter-with [hiccup]
+                      [:div#old {:id "new"}]) :sxml)
+  [:div {:id "new"}]
+  user=> (xfm/copy! (filter-with [hiccup]
+                      [:div.a.b {:class "b c"}]) :sxml)
+  [:div {:class "a b c"}]
+
+.. [4] The SAX event seq format was originally added to decouple SXML traversal
+   from the dirty work of interoperating with the Java SAX API. Perhaps in the
+   future, the SAX event seq format will be available in more parts of the API,
+   to make the filter feature more useful and composable.
+
+SXML precompilation
+-------------------
+
+**Here be dragons.**
+
+SXML can be "pre-compiled", in a sense, by converting it to SAX event seq
+format ahead of time. This allows the SAX interop to get better performance by
+pre-computing the traversal of an oft-used SXML form. The
+``sxml-jaxp.transform`` APIs all accept this format as input.  The easiest way
+to use this is the ``sxml-jaxp.sax/compiled-sxml`` macro, which will
+pre-compile a literal SXML form at compile time::
+
+  user=> (let [a "foo" b "bar" c "baz"]
+           (xfm/copy! (sax/compiled-sxml [:root a b [:c c]])))
+  "<?xml version=\"1.0\" encoding=\"UTF-8\"?><root>foobar<c>baz</c></root>"
+
+It comes in a vanilla function version as well, ``compile-sxml``.
+
+However, there are several caveats in the current implementation (which may be
+fixable but I haven't thought about it enough):
+
+* Expressions may be used in the content of a pre-compiled literal, but in the
+  current implementation, they are are fixed as element names when at the head
+  of a vector, and as text nodes anywhere else. They cannot affect the element
+  structure of the resulting document::
+
+    user=> (let [elem :go]
+             (xfm/copy! (sax/compiled-sxml [:ready :set elem [elem]])))
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ready><set/>:go<go/></ready>"
+    user=> (let [fail [:fail "fail!"]]
+             (xfm/copy! (sax/compiled-sxml [:ready :set fail])))
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ready><set/>[:fail \"fail!\"]</ready>"
+
+* Attributes must be literal maps, but they may contain expressions in the
+  key and value positions. This is probably much easier to fix.
+
 Limitations and future work
 ===========================
 
@@ -323,11 +403,10 @@ Limitations and future work
   XML namespace declarations is a pretty nasty affair. The library should
   provide help with this.
 
-* Provide a Hiccup_ compatibility module, for easily writing and processsing
-  XHTML and XHTML-generating templates with JAXP. In particular, the
-  ``:tag#id.class.class`` syntax is quite useful for this.
-
-.. _Hiccup: [http://github.com/weavejester/hiccup]
+* Allow filters to be more composable by separating the SAX parser into two
+  stages, such that an event seq is generated first, and the shift-reduce SXML
+  generation operates on that. Then stream filters can be inserted between
+  them. Currently the SAX handler directly feeds the SXML generator.
 
 License
 =======

@@ -320,6 +320,7 @@
   (compile-sxml form))
 
 (derive clojure.lang.IPersistentVector ::sxml)
+(derive clojure.lang.LazySeq ::sxml)
 
 (defmulti ^{:private true} get-xml-reader
   "Get the appropriate kind of XMLReader for the given input source type."

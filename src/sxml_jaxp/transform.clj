@@ -25,6 +25,7 @@
   (.. (TransformerFactory/newInstance) (newTransformer)))
 
 (derive clojure.lang.IPersistentVector ::sxml)
+(derive clojure.lang.LazySeq ::sxml)
 
 (defmulti to-source
   "Convert any sort of thing that might function as a source of XML into a
