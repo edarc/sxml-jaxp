@@ -150,12 +150,12 @@
 
 (defn sax-roundtrip
   [form]
-  (let [[result handler] (sax-handler)
-        reader           (sax-reader form)]
+  (let [[handler output-atom] (sax-handler)
+        reader                (sax-reader form)]
     (doto reader
       (.setContentHandler handler)
       (.parse nil))
-    @result))
+    @output-atom))
 
 (deftest sxml-sax-roundtrip "SXML->SAX->SXML roundtrip is lossless"
   (are [form] (= (normalize form) (sax-roundtrip (normalize form)))

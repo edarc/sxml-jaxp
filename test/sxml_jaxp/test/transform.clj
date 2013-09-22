@@ -65,9 +65,9 @@
     (is (= (re-find #"<[^?].*[^?]>"
                     (.toString (t (ByteArrayOutputStream.))))
            "<root><a/><b/><c/></root>"))
-    (is (= (let [[output result] (sax-result)]
+    (is (= (let [[result output-atom] (sax-result)]
              (t result)
-             @output)
+             @output-atom)
            (normalize [:root :a :b :c])))))
 
 (defn exclude-?xml [s] (re-find #"<[^?].*[^?]>" s))

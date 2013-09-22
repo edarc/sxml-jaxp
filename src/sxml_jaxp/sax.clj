@@ -275,8 +275,7 @@
   (the root element), which replaces the stack as the atom's value."
   []
   (let [sxml-stack (atom ())]
-    [sxml-stack
-     (reify
+    [(reify
        ContentHandler
        (startDocument [_] nil)
        (startPrefixMapping [_ prefix uri]
@@ -294,14 +293,15 @@
           (swap! sxml-stack reduce-element (qname-to-kw qname)))
        (endPrefixMapping [_ _] nil)
        (endDocument [_]
-          (swap! sxml-stack first)))]))
+          (swap! sxml-stack first)))
+     sxml-stack]))
 
 (defn sax-result
   "As with sax-handler, except wraps the handler in a SAXResult instance, for
   use with XSL transformations."
   []
-  (let [[result handler] (sax-handler)]
-    [result (SAXResult. handler)]))
+  (let [[handler output-atom] (sax-handler)]
+    [(SAXResult. handler) output-atom]))
 
 (defn compile-sxml
   "Given an SXML form, compile the SAX event sequence and return it,
@@ -357,10 +357,10 @@
   "Convert some source of XML data to an SXML structure. The src argument need
   only extend the XMLReadable protocol."
   [src]
-  (let [[output handler] (sax-handler)
+  (let [[handler output-atom] (sax-handler)
         ^XMLReader reader (make-xmlreader src)
         ^InputSource input (xmlreader-parse-arg src)]
     (doto reader
       (.setContentHandler handler)
       (.parse input))
-    @output))
+    @output-atom))
