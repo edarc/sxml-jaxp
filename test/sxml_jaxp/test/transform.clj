@@ -54,23 +54,21 @@
            (StringReader. string-template)
            (compile-template (StringReader. string-template))))))
 
+(defn exclude-?xml [s] (re-find #"<[^?].*[^?]>" s))
+
 (deftest polymorphic-result "polymorphic transformation result"
   (let [t (fn [r] (transform! (identity-stylesheet) [:root :a :b :c] r))]
     (is (= (t :sxml) (normalize [:root :a :b :c])))
-    (is (= (re-find #"<[^?].*[^?]>" (t :string))
+    (is (= (exclude-?xml (t :string))
            "<root><a/><b/><c/></root>"))
-    (is (= (re-find #"<[^?].*[^?]>"
-                    (.toString (t (StringWriter.))))
+    (is (= (exclude-?xml (.toString (t (StringWriter.))))
            "<root><a/><b/><c/></root>"))
-    (is (= (re-find #"<[^?].*[^?]>"
-                    (.toString (t (ByteArrayOutputStream.))))
+    (is (= (exclude-?xml (.toString (t (ByteArrayOutputStream.))))
            "<root><a/><b/><c/></root>"))
     (is (= (let [[result output-atom] (sax-result)]
              (t result)
              @output-atom)
            (normalize [:root :a :b :c])))))
-
-(defn exclude-?xml [s] (re-find #"<[^?].*[^?]>" s))
 
 (deftest sxml-output "copying to various sinks"
   (let [p (fn [r] (copy! [:root :a :b :c] r))
