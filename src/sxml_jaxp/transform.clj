@@ -24,19 +24,25 @@
   []
   (.. (TransformerFactory/newInstance) (newTransformer)))
 
-(derive clojure.lang.IPersistentVector ::sxml)
-(derive clojure.lang.LazySeq ::sxml)
+(defprotocol TransformSource
+  (make-jaxp-source [obj]
+     "Adapt obj into an instance of javax.xml.transform.Source."))
 
-(defmulti to-source
-  "Convert any sort of thing that might function as a source of XML into a
-  Source object for transforms."
-  class)
-(defmethod to-source ::sxml [sx] (sax/sax-source sx))
-(defmethod to-source Source [s] s)
-(defmethod to-source InputStream [^InputStream ir] (StreamSource. ir))
-(defmethod to-source Reader [^Reader r] (StreamSource. r))
-(defmethod to-source File [^File f] (StreamSource. f))
-(defmethod to-source String [s] (to-source (StringReader. s)))
+(extend-protocol TransformSource
+  clojure.lang.IPersistentVector
+    (make-jaxp-source [sx] (sax/sax-source sx))
+  clojure.lang.LazySeq
+    (make-jaxp-source [sx] (sax/sax-source sx))
+  Source
+    (make-jaxp-source [s] s)
+  InputStream
+    (make-jaxp-source [is] (StreamSource. is))
+  Reader
+    (make-jaxp-source [r] (StreamSource. r))
+  File
+    (make-jaxp-source [f] (StreamSource. f))
+  String
+    (make-jaxp-source [s] (make-jaxp-source (StringReader. s))))
 
 (derive OutputStream ::adapt-with-streamresult)
 (derive Writer ::adapt-with-streamresult)
@@ -82,7 +88,7 @@
   (binding [sax/*default-xmlns* (assoc sax/*default-xmlns* :xsl
                                        "http://www.w3.org/1999/XSL/Transform")]
     (.. (TransformerFactory/newInstance)
-      (newTemplates (to-source ss)))))
+      (newTemplates (make-jaxp-source ss)))))
 
 (defmulti ^{:private true} transformer
   "Create an XSLT Transformer from any sort of thing that might function as a
@@ -106,7 +112,7 @@
   ([stylesheet source result]
    (let [result (to-result result)]
      (.transform ^Transformer (transformer stylesheet)
-                 (to-source source)
+                 (make-jaxp-source source)
                  (first result))
      (from-result result))))
 

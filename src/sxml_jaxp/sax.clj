@@ -328,40 +328,30 @@
      to the parse method of the XMLReader instance returned by
      make-xmlreader."))
 
-(extend-type clojure.lang.IPersistentVector
-  XMLReadable
-  (make-xmlreader [sxml] (sax-reader sxml))
-  (xmlreader-parse-arg [_] nil))
-
-(extend-type clojure.lang.LazySeq
-  XMLReadable
-  (make-xmlreader [sxml] (sax-reader sxml))
-  (xmlreader-parse-arg [_] nil))
-
 (defn make-sax-xmlreader
   "Construct a vanilla XMLReader instance from the SAX library."
   []
   (.. SAXParserFactory (newInstance) (newSAXParser) (getXMLReader)))
 
-(extend-type InputStream
-  XMLReadable
-  (make-xmlreader [is] (make-sax-xmlreader))
-  (xmlreader-parse-arg [is] (InputSource. is)))
-
-(extend-type Reader
-  XMLReadable
-  (make-xmlreader [r] (make-sax-xmlreader))
-  (xmlreader-parse-arg [r] (InputSource. r)))
-
-(extend-type File
-  XMLReadable
-  (make-xmlreader [f] (make-sax-xmlreader))
-  (xmlreader-parse-arg [f] (xmlreader-parse-arg (FileReader. f))))
-
-(extend-type String
-  XMLReadable
-  (make-xmlreader [s] (make-sax-xmlreader))
-  (xmlreader-parse-arg [s] (xmlreader-parse-arg (StringReader. s))))
+(extend-protocol XMLReadable
+  clojure.lang.IPersistentVector
+    (make-xmlreader [sxml] (sax-reader sxml))
+    (xmlreader-parse-arg [_] nil)
+  clojure.lang.LazySeq
+    (make-xmlreader [sxml] (sax-reader sxml))
+    (xmlreader-parse-arg [_] nil)
+  InputStream
+    (make-xmlreader [is] (make-sax-xmlreader))
+    (xmlreader-parse-arg [is] (InputSource. is))
+  Reader
+    (make-xmlreader [r] (make-sax-xmlreader))
+    (xmlreader-parse-arg [r] (InputSource. r))
+  File
+    (make-xmlreader [f] (make-sax-xmlreader))
+    (xmlreader-parse-arg [f] (xmlreader-parse-arg (FileReader. f)))
+  String
+    (make-xmlreader [s] (make-sax-xmlreader))
+    (xmlreader-parse-arg [s] (xmlreader-parse-arg (StringReader. s))))
 
 (defn read-sxml
   "Convert some source of XML data to an SXML structure. The src argument need
