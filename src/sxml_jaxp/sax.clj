@@ -15,14 +15,14 @@
             defined inline with xmlns attributes. Essentially, xmlns attributes
             declaring these namespaces are automatically inserted into the root
             element before parsing begins."}
-  *default-xmlns* {})
+  ^:dynamic *default-xmlns* {})
 
 (def ^{:private true
        :doc "The internal map of XML namespace prefixes. This accumulates
             namespace definitions as they are encountered during traversal of
             the SXML tree. This map is referred to when resolving the namespace
-            URI of elements and attributes." }
-  *xmlns* {})
+            URI of elements and attributes."}
+  ^:dynamic *xmlns* {})
 
 (defn- qualify-name
   "Accepts a keyword representing a tag or attribute name, and returns [qname
