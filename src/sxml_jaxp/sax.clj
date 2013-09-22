@@ -319,39 +319,57 @@
   [form]
   (compile-sxml form))
 
-(derive clojure.lang.IPersistentVector ::sxml)
-(derive clojure.lang.LazySeq ::sxml)
+(defprotocol XMLReadable
+  "A protocol for things that can be adapted into an org.xml.sax.XMLReader."
+  (make-xmlreader [obj]
+     "Adapt obj into an object implementing XMLReader.")
+  (xmlreader-parse-arg [obj]
+     "Adapt obj into an object implementing InputSource, which will be passed
+     to the parse method of the XMLReader instance returned by
+     make-xmlreader."))
 
-(defmulti ^{:private true} get-xml-reader
-  "Get the appropriate kind of XMLReader for the given input source type."
-  class)
-;; I have no idea why you would want to do this, but might as well be
-;; orthogonal as possible.
-(defmethod get-xml-reader ::sxml [sxml]
-  (sax-reader sxml))
-(defmethod get-xml-reader Object [_]
+(extend-type clojure.lang.IPersistentVector
+  XMLReadable
+  (make-xmlreader [sxml] (sax-reader sxml))
+  (xmlreader-parse-arg [_] nil))
+
+(extend-type clojure.lang.LazySeq
+  XMLReadable
+  (make-xmlreader [sxml] (sax-reader sxml))
+  (xmlreader-parse-arg [_] nil))
+
+(defn make-sax-xmlreader
+  "Construct a vanilla XMLReader instance from the SAX library."
+  []
   (.. SAXParserFactory (newInstance) (newSAXParser) (getXMLReader)))
 
-(defmulti ^{:private true} to-parser-input
-  "Convert the input source to the appropriate type for passing to the
-  XMLReader for parsing."
-  class)
-(defmethod to-parser-input ::sxml [_] nil)
-(defmethod to-parser-input InputStream [^InputStream is]
-  (InputSource. is))
-(defmethod to-parser-input Reader [^Reader r]
-  (InputSource. r))
-(defmethod to-parser-input File [^File f]
-  (to-parser-input (FileReader. f)))
-(defmethod to-parser-input String [^String s]
-  (to-parser-input (StringReader. s)))
+(extend-type InputStream
+  XMLReadable
+  (make-xmlreader [is] (make-sax-xmlreader))
+  (xmlreader-parse-arg [is] (InputSource. is)))
+
+(extend-type Reader
+  XMLReadable
+  (make-xmlreader [r] (make-sax-xmlreader))
+  (xmlreader-parse-arg [r] (InputSource. r)))
+
+(extend-type File
+  XMLReadable
+  (make-xmlreader [f] (make-sax-xmlreader))
+  (xmlreader-parse-arg [f] (xmlreader-parse-arg (FileReader. f))))
+
+(extend-type String
+  XMLReadable
+  (make-xmlreader [s] (make-sax-xmlreader))
+  (xmlreader-parse-arg [s] (xmlreader-parse-arg (StringReader. s))))
 
 (defn read-sxml
-  "Convert some source of XML data to an SXML structure."
+  "Convert some source of XML data to an SXML structure. The src argument need
+  only extend the XMLReadable protocol."
   [src]
   (let [[output handler] (sax-handler)
-        ^XMLReader reader (get-xml-reader src)
-        ^InputSource input (to-parser-input src)]
+        ^XMLReader reader (make-xmlreader src)
+        ^InputSource input (xmlreader-parse-arg src)]
     (doto reader
       (.setContentHandler handler)
       (.parse input))
