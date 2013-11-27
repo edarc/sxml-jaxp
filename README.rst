@@ -15,7 +15,9 @@ Clojure-flavored SXML
 =====================
 
 Clojure-flavored SXML uses vectors, keywords, and maps to denote elements,
-tags, and attributes. [1]_ ::
+tags, and attributes. [1]_
+
+.. code:: clojure
 
   [:item {}
     [:title {} "Memorandum"]
@@ -33,7 +35,9 @@ denoting the element name, ``attrs`` is a possibly-empty map of keywords
 sequence of child nodes, which may be strings or other elements. This is the
 *normalized* form.
 
-There is also a *simplified* form::
+There is also a *simplified* form:
+
+.. code:: clojure
 
   [:item
     [:title "Memorandum"]
@@ -63,7 +67,9 @@ Usage
 =====
 
 Here are some examples of using ``sxml-jaxp`` for various tasks. We'll assume
-the following ``require``'s::
+the following ``require``'s:
+
+.. code:: clojure
 
   (require '[sxml-jaxp.core :as core]
            '[sxml-jaxp.sax :as sax]
@@ -75,12 +81,14 @@ Parsing XML to SXML
 -------------------
 
 You can use the ``sxml-jaxp.sax/read-sxml`` function to read from some source
-of XML data and return it in SXML format::
+of XML data and return it in SXML format:
+
+.. code:: clojure
 
   user=> (sax/read-sxml "<greet>Hello world!</greet>")
   [:greet {} "Hello world!"]
 
-You can use ``Reader``'s, ``InputStream``'s, and ``File``'s too. ::
+You can use ``Reader``'s, ``InputStream``'s, and ``File``'s too.
 
   user=> (sax/read-sxml (java.io.StringReader. "<greet>Hello world!</greet>"))
   [:greet {} "Hello world!"]
@@ -89,7 +97,9 @@ Navigation helpers
 ------------------
 
 There are some trivial helper functions to allow you to access the components
-of SXML elements easily. ::
+of SXML elements easily.
+
+.. code:: clojure
 
   user=> (def fancy-hello [:greet {:language "en"} "Hello world!"])
   #'user/fancy-hello
@@ -101,7 +111,9 @@ of SXML elements easily. ::
   ["Hello world!"]
 
 These are marginally more useful than regular vector access methods because
-they work on SXML that might not be normalized::
+they work on SXML that might not be normalized:
+
+.. code:: clojure
 
   user=> (def simple-hello [:greet "Hello world!"])
   #'user/simple-hello
@@ -115,14 +127,18 @@ Outputting to XML
 
 The ``sxml-jaxp.transform/copy!`` function can be used to copy SXML into various
 kinds of output "sinks". Here, we'll use a ``Writer``. Notice it returns the
-thing you passed as the "sink" so you can do more stuff with it::
+thing you passed as the "sink" so you can do more stuff with it:
+
+.. code:: clojure
 
   user=> (.toString (xfm/copy! fancy-hello (java.io.StringWriter.)))
   "<?xml version=\"1.0\" encoding=\"UTF-8\"?><greet language=\"en\">Hello world!</greet>"
 
 ``copy!`` also recognizes the special sink ``:string``, which is the default
 when you don't provide a sink. [2]_ This causes it to return the source as a
-string of XML::
+string of XML:
+
+.. code:: clojure
 
   user=> (xfm/copy! fancy-hello :string)
   "<?xml version=\"1.0\" encoding=\"UTF-8\"?><greet language=\"en\">Hello world!</greet>"
@@ -134,7 +150,9 @@ XSL Transforms
 
 Transformations are performed with the ``sxml-jaxp.transform/transform!``
 function.  This accepts a stylesheet, a source, and a result. I'll use the XSLT
-DSL (defined in ``sxml-jaxp.transform.xslt``) to create XSLT stylesheets. ::
+DSL (defined in ``sxml-jaxp.transform.xslt``) to create XSLT stylesheets.
+
+.. code:: clojure
 
   user=> (xfm/transform! (xsl/stylesheet "1.0"
                            (xsl/match-template "/once-old"
@@ -147,7 +165,9 @@ I didn't provide a target for the result, so it defaulted to the special target
 well, and you can use any other reasonable object as your result target.
 
 Here's a more complex example, getting a seq of the latest article titles on
-Ars Technica using their RSS feed::
+Ars Technica using their RSS feed:
+
+.. code:: clojure
 
   user=> (def rss-title-tmpl
            (xfm/compile-template
@@ -203,7 +223,9 @@ XSLT DSL
 
 The namespace ``sxml-jaxp.transform.xslt`` [3]_ defines a DSL for writing XSL
 transformation stylesheets in Clojure. This DSL outputs the stylesheets in SXML
-format. Here's the template we used in the last example::
+format. Here's the template we used in the last example:
+
+.. code:: clojure
 
   user=> (xsl/stylesheet "1.0"
            (xsl/match-template "/rss/channel/item"
@@ -240,7 +262,9 @@ There are a handful of exceptions:
   ``<xsl:otherwise />``), and in the consequent position is the contents of
   the ``when`` or ``otherwise`` instructions. You can put multiple elements
   inside the consequent by placing them in a vector, as long as the vector
-  does not start with a keyword::
+  does not start with a keyword:
+
+  .. code:: clojure
 
     user=> (xsl/cond*
              "foo" (xsl/value-of "foo")
@@ -276,7 +300,9 @@ section, namespaces on keywords in SXML are interpreted as XML namespace
 prefixes, e.g. ``:xsl/stylesheet``, ``:xi/include``, or ``:fo/page-sequence``.
 
 Namespace prefix declarations are also specified in an analogous way to XML:
-using ``xmlns`` attributes::
+using ``xmlns`` attributes:
+
+.. code:: clojure
 
   [:html {:xmlns "http://www.w3.org/1999/xhtml",
           :xmlns/xi "http://www.w3.org/2001/XInclude"}
@@ -288,7 +314,9 @@ communicated to the various Java XML APIs as required.
 
 Whenever an SXML form is traversed by ``sxml-jaxp``'s SAX reader, a map
 contained in ``sxml-jaxp.sax/*default-xmlns*`` is used to resolve un-declared
-namespace prefixes::
+namespace prefixes:
+
+.. code:: clojure
 
   user=> (use '[sxml-jaxp.sax :only [*default-xmlns*]])
   nil
@@ -318,7 +346,9 @@ on the SAX event seq [4]_ generated when SXML is fed as input into JAXP. This
 API is experimental, but an example application of this is the Hiccup filter in
 ``sxml-jaxp.sax.filter.hiccup``, which allows writing XHTML ``id`` and
 ``class`` attributes using Hiccup's shortcut syntax. Here we'll use
-``xfm/copy!``'s ``:sxml`` target to help make it clearer what's going on::
+``xfm/copy!``'s ``:sxml`` target to help make it clearer what's going on:
+
+.. code:: clojure
 
   user=> (use '[sxml-jaxp.sax.filter]
               '[sxml-jaxp.sax.filter.hiccup])
@@ -340,7 +370,9 @@ API is experimental, but an example application of this is the Hiccup filter in
 If an ``:id`` key appears in an element's attribute map, it overrides the
 Hiccup-specified one. If a ``:class`` key is present in the attribute map, it
 may be a HTML-style space-delimited string, or a set of strings. The class
-names so specified are unioned with the Hiccup-specified classes. ::
+names so specified are unioned with the Hiccup-specified classes.
+
+.. code:: clojure
 
   user=> (xfm/copy! (filter-with [hiccup]
                       [:div#old {:id "new"}]) :sxml)
@@ -364,7 +396,9 @@ format ahead of time. This allows the SAX interop to get better performance by
 pre-computing the traversal of an oft-used SXML form. The
 ``sxml-jaxp.transform`` APIs all accept this format as input.  The easiest way
 to use this is the ``sxml-jaxp.sax/compiled-sxml`` macro, which will
-pre-compile a literal SXML form at compile time::
+pre-compile a literal SXML form at compile time:
+
+.. code:: clojure
 
   user=> (let [a "foo" b "bar" c "baz"]
            (xfm/copy! (sax/compiled-sxml [:root a b [:c c]])))
@@ -378,7 +412,9 @@ fixable but I haven't thought about it enough):
 * Expressions may be used in the content of a pre-compiled literal, but in the
   current implementation, they are are fixed as element names when at the head
   of a vector, and as text nodes anywhere else. They cannot affect the element
-  structure of the resulting document::
+  structure of the resulting document:
+
+  .. code:: clojure
 
     user=> (let [elem :go]
              (xfm/copy! (sax/compiled-sxml [:ready :set elem [elem]])))
