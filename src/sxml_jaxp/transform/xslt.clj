@@ -2,14 +2,16 @@
   "Syntactic sugar for constructing XSL templates in SXML."
   (:refer-clojure :exclude [comment key import sort]))
 
+(def xslt-ns "http://www.w3.org/1999/XSL/Transform")
+
 (defmacro ^{:private true} deftag
   "Define a function that emits an SXML XSLT tag."
   [fn-name tag args & expansion]
   (let [tag (if (= '_ tag) fn-name tag)]
     `(defn ~fn-name
        ~args
-       (vec (concat [~(keyword "xsl" (name tag))]
-                    ~@expansion)))))
+       (reduce conj [~(keyword "xsl" (name tag))]
+               ~@expansion))))
 
 (defmacro ^{:private true} def-trivial-tags
   "Define all trivial tags, which accept no positional attributes but do accept
@@ -75,7 +77,7 @@
 (def-pos-tag-empty preserve-space _ [elements])
 (def-pos-tag processing-instruction _ [name])
 (def-pos-tag-empty strip-space _ [elements])
-(def-pos-tag stylesheet _ [version])
+(def-pos-tag stylesheet* stylesheet [version])
 (def-pos-tag match-template template [match])
 (def-pos-tag named-template template [name])
 (def-pos-tag transform _ [version])
@@ -105,3 +107,15 @@
                     (vec (concat [:xsl/otherwise] consequent))
                     (vec (concat [:xsl/when {:test condition}] consequent)))))]
     (vec (concat [:xsl/choose] clauses))))
+
+(defn stylesheet
+  "Special sauce for the stylesheet tag, which needs to merge the XML namespace
+  with any optional extra attribute map."
+  [version & args]
+  (let [[maybe-attrs & rest-args] args
+        extra-attrs? (map? maybe-attrs)
+        xmlns {:xmlns/xsl xslt-ns}]
+    (apply stylesheet*
+      (if extra-attrs?
+        (concat [version (merge xmlns maybe-attrs)] rest-args)
+        (concat [version xmlns] args)))))

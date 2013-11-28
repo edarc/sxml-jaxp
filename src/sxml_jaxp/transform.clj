@@ -111,10 +111,8 @@
   template can be used as the stylesheet argument to transform!, which will
   prevent it having to parse and compile the template on each invocation."
   [ss]
-  (binding [sax/*default-xmlns* (assoc sax/*default-xmlns* :xsl
-                                       "http://www.w3.org/1999/XSL/Transform")]
-    (.. (TransformerFactory/newInstance)
-      (newTemplates (make-jaxp-source ss)))))
+  (.. (TransformerFactory/newInstance)
+      (newTemplates (make-jaxp-source ss))))
 
 (defmulti ^{:private true} transformer
   "Create an XSLT Transformer from any sort of thing that might function as a
