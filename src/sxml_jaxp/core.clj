@@ -55,6 +55,12 @@
     (into {} (for [k (filter attr-is-xmlns? (keys elem-attrs))]
                [(de-xmlnsify k) (elem-attrs k)]))))
 
+(defn update-attrs
+  "Return the element with updated attribute values."
+  [new-attrs elem]
+  (let [[tag attrs & children] (normalize-1 elem)]
+    (reduce conj [tag (merge attrs new-attrs)] children)))
+
 (defn children
   "Get the child nodes of the given SXML element."
   [elem]

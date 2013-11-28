@@ -63,7 +63,16 @@
     [:t {:foo "bar"}])
   (are [in] (= (children in) ["foo" "bar"])
     [:t "foo" "bar"]
-    [:t {} "foo" "bar"]))
+    [:t {} "foo" "bar"])
+  (are [in] (= (update-attrs {:foo "bar"} in)
+               [:t {:foo "bar"} "stuff"])
+    [:t "stuff"]
+    [:t {} "stuff"]
+    [:t {:foo "not-bar"} "stuff"])
+  (are [in] (= (update-attrs {:foo "bar"} in)
+               [:t {:foo "bar" :baz "quux"}])
+    [:t {:baz "quux"}]
+    [:t {:foo "not-bar" :baz "quux"}]))
 
 (deftest simplification "simplification of SXML forms"
   (testing "non-markup"
