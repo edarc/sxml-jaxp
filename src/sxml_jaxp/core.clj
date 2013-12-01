@@ -66,6 +66,12 @@
   [elem]
   (subvec (normalize-1 elem) 2))
 
+(defn alter-children
+  "Apply a function to the children of the given SXML element."
+  [elem f]
+  (let [[tag attrs & children] (normalize-1 elem)]
+    (into [tag attrs] (f children))))
+
 (defn normalize
   "Return the normalized, long form of the given SXML representation. All tag
   elements will be of the form [tag attrs & children], where tag is a keyword
