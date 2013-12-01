@@ -132,10 +132,15 @@
   function returns that object. You may pass :string as the result to have the
   outpu in string format, or :sxml to get the result in SXML format. When no
   result argument is given, it defaults to :sxml."
-  ([stylesheet source] (transform! stylesheet source :sxml))
-  ([stylesheet source result]
-   (let [[jaxp-result state] (to-result result)]
-     (.transform ^Transformer (transformer stylesheet)
+  ([stylesheet source] (transform! stylesheet source :sxml nil))
+  ([stylesheet source result] (transform! stylesheet source result nil))
+  ([stylesheet source result output-properties]
+   (let [[jaxp-result state] (to-result result)
+         xfm (transformer stylesheet)]
+     (when output-properties
+       (doseq [[prop value] output-properties]
+         (.setOutputProperty xfm prop value)))
+     (.transform ^Transformer xfm
                  (make-jaxp-source source)
                  jaxp-result)
      (from-result state))))
