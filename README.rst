@@ -90,14 +90,22 @@ of XML data and return it in SXML format:
 
 You can use ``Reader``'s, ``InputStream``'s, and ``File``'s too.
 
+.. code:: clojure
+
   user=> (sax/read-sxml (java.io.StringReader. "<greet>Hello world!</greet>"))
   [:greet {} "Hello world!"]
 
-Navigation helpers
-------------------
+SXML manipulation helpers
+-------------------------
 
-There are some trivial helper functions to allow you to access the components
-of SXML elements easily.
+There are several helper functions to allow you to easily access and modify
+SXML elements and forms.
+
+Access functions
+................
+
+The functions ``sxml-jaxp.core/tag``, ``attrs``, and ``children`` allow you to
+access the components of SXML elements easily.
 
 .. code:: clojure
 
@@ -110,8 +118,8 @@ of SXML elements easily.
   user=> (core/children fancy-hello)
   ["Hello world!"]
 
-These are marginally more useful than regular vector access methods because
-they work on SXML that might not be normalized:
+These are more robust than regular vector access methods, firstly because they
+work on SXML that might not be normalized:
 
 .. code:: clojure
 
@@ -121,6 +129,102 @@ they work on SXML that might not be normalized:
   {}
   user=> (core/children simple-hello)
   ["Hello world!"]
+
+Additionally, they are also XML-namespace-aware. They can help you propagate
+namespace prefix declarations automatically when navigating, and keep them out
+of your hair when working with attributes:
+
+.. code:: clojure
+
+  user=> (def namespacey-hello
+           [:hi/greetings
+            {:xmlns/hi "http://w3.org/TR/Hello" :language "en"}
+            [:hi/greet "Hello world!"]])
+  user=> (core/attrs namespacey-hello)
+  {:language "en"}
+  user=> (core/children namespacey-hello)
+  [[:hi/greet {:xmlns/hi "http://w3.org/TR/Hello"} "Hello world!"]]
+
+There is also one other access function specifically for namespace
+declarations, ``ns-decls``:
+
+.. code:: clojure
+
+  user=> (core/ns-decls namespacey-hello)
+  {:hi "http://w3.org/TR/Hello"}
+
+Modification functions
+......................
+
+The modification functions are in three groups, and all take an element as
+their first argument. The first is the *alter* group, which update an element
+by applying a function to some portion of it. These are ``alter-tag``,
+``alter-attrs``, ``alter-children`` and ``alter-ns-decls``:
+
+.. code:: clojure
+
+  user=> (core/alter-tag fancy-hello (fn [t] (-> t name .toUpperCase keyword)))
+  [:GREET {:language "en"} "Hello world!"]
+  user=> (core/alter-attrs fancy-hello #(assoc % :language "en-US"))
+  [:greet {:language "en-US"} "Hello world!"]
+  user=> (core/alter-children namespacey-hello (partial mapcat core/children))
+  [:hi/greetings
+   {:xmlns/hi "http://w3.org/TR/Hello", :language "en"}
+   "Hello world!"]
+  user=> (core/alter-ns-decls
+           namespacey-hello (fn [nsd] (assoc nsd nil (:hi nsd))))
+  [:hi/greetings
+   {:xmlns/hi "http://w3.org/TR/Hello",
+    :xmlns "http://w3.org/TR/Hello",
+    :language "en"}
+   [:hi/greet "Hello world!"]]
+
+The second group is the *replace* group, ``replace-tag``, ``replace-attrs``,
+``replace-children``, ``replace-ns-decls``. These are shorthand for altering an
+element by replacing it with a constant value: [2]_:
+
+.. code:: clojure
+
+  user=> (core/replace-tag fancy-hello :salutation)
+  [:salutation {:language "en"} "Hello world!"]
+  user=> (core/replace-children fancy-hello [[:with-feeling "Hello world!!!"]])
+  [:greet {:language "en"} [:with-feeling "Hello world!!!"]]
+
+The third group is the special group, which contains ``update-attrs``,
+``update-ns-decls``, and ``map-children``. These are also shorthand, for
+altering the attributes or XML namespace declarations by merging a map of new
+and updated values, like Clojure's ``merge`` function. [2]_
+
+``map-children`` is similar to ``alter-children`` except that the former maps
+the function across each child element in turn, while the latter calls the
+function once and passes the entire sequence of children as the parameter:
+
+.. code:: clojure
+
+  user=> (core/map-children [:parent :one :two :three [:four "4"]]
+                            (comp name core/tag))
+  [:parent {} "one" "two" "three" "four"]
+
+There are also two tiny combinators for helping construct functions to pass
+into ``alter-*`` and ``map-children``, which are named ``on-tags`` and
+``on-text``. These work by turning your function into an identity when the type
+of element passed is not a tag or a text node:
+
+.. code:: clojure
+
+  user=> (core/map-children [:parent :one :two :three "surprise"]
+                            (comp name core/tag))
+  ClassCastException java.lang.Character cannot be cast to clojure.lang.Named
+  clojure.core/name (core.clj:1505)
+  user=> (core/map-children [:parent :one :two :three "surprise"]
+                            (core/on-tags (comp name core/tag)))
+  [:parent {} "one" "two" "three" "surprise"]
+  user=> (core/map-children [:parent :one :two :three "surprise"]
+                            (core/on-text #(.toUpperCase %)))
+  [:parent {} :one :two :three "SURPRISE"]
+
+.. [2] They are implemented using the ``alter-`` functions with Clojure's
+   ``constantly`` and ``merge`` functions.
 
 Outputting to XML
 -----------------
@@ -135,7 +239,7 @@ thing you passed as the "sink" so you can do more stuff with it:
   "<?xml version=\"1.0\" encoding=\"UTF-8\"?><greet language=\"en\">Hello world!</greet>"
 
 ``copy!`` also recognizes the special sink ``:string``, which is the default
-when you don't provide a sink. [2]_ This causes it to return the source as a
+when you don't provide a sink. [3]_ This causes it to return the source as a
 string of XML:
 
 .. code:: clojure
@@ -161,7 +265,7 @@ DSL (defined in ``sxml-jaxp.transform.xslt``) to create XSLT stylesheets.
   [:new-again {} "Hi!"]
 
 I didn't provide a target for the result, so it defaulted to the special target
-``:sxml`` [2]_. Like ``copy!``, it recognizes the special target ``:string`` as
+``:sxml`` [3]_. Like ``copy!``, it recognizes the special target ``:string`` as
 well, and you can use any other reasonable object as your result target.
 
 Here's a more complex example, getting a seq of the latest article titles on
@@ -181,31 +285,31 @@ Ars Technica using their RSS feed:
                                  "http://feeds.arstechnica.com/arstechnica/everything")]
            (map (comp :title core/attrs)
                 (core/children (xfm/transform! rss-title-tmpl at-rss-in))))
-  ("Week in Apple: OS X beta anniversary, nano review, HDR photography"
-   "Week in tech: first sale fail, DRM fail, adult services fail"
-   "Week in gaming: Halo Reach! Civilization! Hunting! Come in! "
-   "Week in Microsoft: IE9 beta arrives"
-   "Ex-child prostitute sues Village Voice over sex ads"
-   "Lawsuit: T-Mobile text blocking is harshing our buzz, man"
-   "FaceTime-equipped iPad expected no later than first quarter 2011"
-   "Microsoft says patent-infringing Android isn't really free "
-   "RCN P2P settlement: ISP can throttle away starting November 1"
-   "Verizon LTE in 30 cities by year end, AT&T aims for mid-2011"
-   "Move, dodge, kill: Time Crisis Razing Storm on the PS3 gets pirates"
-   "Intel confirms HDCP key is real, can now be broken at will"
-   "Windows Phone 7 SDK here; YouTube, Netflix demoed; no CDMA yet"
-   "For crows, a little tool use goes a long way"
-   "Feature: The history of Civilization: 20 years of Wonders"
-   "HTC moves beyond the phone, marginalizes Google in the process"
-   "Feature: BodyMedia FIT review: data, data, and more data for exercisers"
-   "Lawsuit targets advertiser over sneaky HTML5 pseudo-cookies"
-   "Galaxy Tab coming to all US carriers; no pricing yet, no 4G"
-   "Apple TV definitely running iOS, could be jailbreak target"
-   "P2P defendants demand legal fees from Far Cry filmmaker"
-   "Harder for kids to buy M-rated video game than see R-rated movie"
-   "Open source Facebook replacement Diaspora drops first alpha"
-   "Skyhook: Google made OEMs break business deals, infringed patents"
-   "Strange summer melt leaves Arctic ice near record low")
+  ("Forget Amazon’s two-day shipping, soon you can select drone delivery"
+   "Why Comcast and other cable ISPs aren’t selling you gigabit Internet"
+   "What’s the difference between college-level and corporate programming?"
+   "Comet ISON fizzles… but there’s a sting in the tail"
+   "Despacio: The 50,000-watt sound system designed for discerning audiophiles"
+   "Anti-GMO crop paper to be forcibly retracted"
+   "Gallery: Disorienting audiovisual show prepares you for teleportation"
+   "Off Siberia’s Arctic coast, the seafloor belches methane"
+   "Ars’ resident racer takes a second look at Forza Motorsport 5"
+   "Chairs Technica: Where your favorite Ars writers park their rears"
+   "Five complaints Ars readers have about OS X Mavericks"
+   "Unhappy Thanksgiving for Prenda Law, ordered to pay $261K to defendants"
+   "TV news team falls for Facebook doppelgänger scam"
+   "Robot Garden 1.0: Putting Click and Grow to the test"
+   "Water-repellant surface so efficient that drops bounce back off"
+   "Successful killing by stealthy seahorses comes down to their snouts"
+   "Tricksy hobbit-sized black hole pretends to be a giant"
+   "Ars Technica System Guide: November 2013"
+   "Dealmaster Black Friday blowout continues, with updated deals!"
+   "Google removes CyanogenMod Installer from Play Store"
+   "How to talk your family out of bad consumer electronics purchases"
+   "Once-great SSD manufacturer OCZ filing for bankruptcy"
+   "Catch up on last-gen gaming with these Black Friday deals"
+   "New Linux worm targets routers, cameras, “Internet of things” devices"
+   "Elusive Higgs decay channel spotted; particle looks ever more standard")
 
 Here we've pre-compiled our XSL template using ``compile-template``. This can
 be used if you plan on transforming more than one document with a particular
@@ -213,7 +317,7 @@ stylesheet. It uses TrAX to compile the template into some object implementing
 ``Templates``, so that it doesn't have to parse and compile it for every
 invocation.
 
-.. [2] ``copy!`` actually recognizes the ``:sxml`` sink also, although I don't
+.. [3] ``copy!`` actually recognizes the ``:sxml`` sink also, although I don't
    know why you'd ever need that; generally you'd want to use
    ``sxml-jaxp.sax/read-sxml`` which bypasses TrAX and reads the input directly
    with SAX.
@@ -221,7 +325,7 @@ invocation.
 XSLT DSL
 ........
 
-The namespace ``sxml-jaxp.transform.xslt`` [3]_ defines a DSL for writing XSL
+The namespace ``sxml-jaxp.transform.xslt`` [4]_ defines a DSL for writing XSL
 transformation stylesheets in Clojure. This DSL outputs the stylesheets in SXML
 format. Here's the template we used in the last example:
 
@@ -233,7 +337,7 @@ format. Here's the template we used in the last example:
            (xsl/match-template "/rss"
              [:items (xsl/apply-templates-to "channel/item")]))
   [:xsl/stylesheet
-   {:version "1.0"}
+   {:xmlns/xsl "http://www.w3.org/1999/XSL/Transform", :version "1.0"}
    [:xsl/template
     {:match "/rss/channel/item"}
     [:link {:title "{title}"}]]
@@ -286,7 +390,7 @@ There are a handful of exceptions:
   accepts as it's positional parameter the XPath expression appearing in the
   ``select`` attribute.
 
-.. [3] ``:use``'ing the ``sxml-jaxp.transform.xslt`` namespace should be done
+.. [4] ``:use``'ing the ``sxml-jaxp.transform.xslt`` namespace should be done
    with caution, as XSLT uses names for several instructions that collide with
    identically-named Clojure core functions. Use ``:only``, ``:exclude``, or
    ``:refer-clojure`` to control these collisions if you absolutely must
@@ -295,9 +399,10 @@ There are a handful of exceptions:
 XML namespaces
 ==============
 
-``sxml-jaxp`` is XML-namespace-aware. As you've probably guessed from the last
-section, namespaces on keywords in SXML are interpreted as XML namespace
-prefixes, e.g. ``:xsl/stylesheet``, ``:xi/include``, or ``:fo/page-sequence``.
+As has been mentioned, ``sxml-jaxp`` is XML-namespace-aware. As you've probably
+guessed from the preceding sections, namespaces on keywords in SXML are
+interpreted as XML namespace prefixes, e.g. ``:xsl/stylesheet``,
+``:xi/include``, or ``:fo/page-sequence``.
 
 Namespace prefix declarations are also specified in an analogous way to XML:
 using ``xmlns`` attributes:
@@ -335,14 +440,14 @@ namespace prefixes:
      <xi:include href="body.xml"></xi:include>
   </html>#<OutputStreamWriter java.io.OutputStreamWriter@484ae502>
 
-Note that for convenience, ``sxml-jaxp.transform`` automatically declares the
-``xsl`` prefix whenever it parses a stylesheet that is expressed in SXML.
+Note that for convenience, ``sxml-jaxp.transform.xslt/stylesheet``
+automatically declares the ``xsl`` prefix.
 
 SAX event filters
 =================
 
 The ``sxml-jaxp.sax.filter`` module allows filters to be inserted which operate
-on the SAX event seq [4]_ generated when SXML is fed as input into JAXP. This
+on the SAX event seq [5]_ generated when SXML is fed as input into JAXP. This
 API is experimental, but an example application of this is the Hiccup filter in
 ``sxml-jaxp.sax.filter.hiccup``, which allows writing XHTML ``id`` and
 ``class`` attributes using Hiccup's shortcut syntax. Here we'll use
@@ -381,7 +486,7 @@ names so specified are unioned with the Hiccup-specified classes.
                       [:div.a.b {:class "b c"}]) :sxml)
   [:div {:class "a b c"}]
 
-.. [4] The SAX event seq format was originally added to decouple SXML traversal
+.. [5] The SAX event seq format was originally added to decouple SXML traversal
    from the dirty work of interoperating with the Java SAX API. Perhaps in the
    future, the SAX event seq format will be available in more parts of the API,
    to make the filter feature more useful and composable.
@@ -433,11 +538,9 @@ Limitations and future work
   way to express a processing instruction in SXML. Advice and suggestions
   welcome.
 
-* XPath support would be pretty awesome.
-
-* With the current syntax, manipulating SXML forms by hand in the presence of
-  XML namespace declarations is a pretty nasty affair. The library should
-  provide help with this.
+* XPath support would be pretty awesome. This can probably be done by providing
+  some help with feeding SXML into a ``Document``, along with a function to run
+  XPath expressions against it and SXMLify the result.
 
 * Allow filters to be more composable by separating the SAX parser into two
   stages, such that an event seq is generated first, and the shift-reduce SXML
