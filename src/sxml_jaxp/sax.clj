@@ -1,7 +1,7 @@
 (ns sxml-jaxp.sax
   "Implements the details of parsing and emitting SXML via SAX."
-  (:use [sxml-jaxp.core :only [normalize xmlnsify apply-namespaces prefix-decls
-                               attr-is-xmlns?]])
+  (:use [sxml-jaxp.core :only [normalize prefix->ns-decl update-ns-decls ns-decls
+                               ns-decl?]])
   (:import
     (org.xml.sax SAXNotRecognizedException ContentHandler XMLReader InputSource
                  Attributes)
@@ -37,7 +37,7 @@
                          (str prefix ":" lname)
                          lname)
         prefix-kw      (keyword prefix)
-        uri            (if (attr-is-xmlns? kw) ""
+        uri            (if (ns-decl? kw) ""
                          (or (prefixes prefix-kw) ""))]
     [qname lname uri prefix-kw]))
 
@@ -67,7 +67,7 @@
   (cond
     (vector? form)
     (let [[tag attrs & children] form
-          new-prefixes           (prefix-decls form)
+          new-prefixes           (ns-decls form)
           merged-prefixes        (merge *xmlns* new-prefixes)
           ev (reduce conj! (transient [])
                      (for [[m u] new-prefixes] [:start-prefix m u]))
@@ -90,7 +90,7 @@
   "Given an SXML form (which must have a root element), produce a sequence of
   events corresponding to the SAX events that represent the corresponding XML."
   [form]
-  (-> form normalize (apply-namespaces *default-xmlns*) sax-event-seq*))
+  (-> form normalize (update-ns-decls *default-xmlns*) sax-event-seq*))
 
 (defn- fire-events*
   "Given a SAX event seq and a SAX ContentHandler, iterate through the events,
@@ -256,8 +256,8 @@
                            (->> top first (= ::start-prefix)))]
      (if prefix-mark?
        (let [[_ prefix uri] top]
-         (recur remain tag (assoc attrs (xmlnsify prefix) uri) children))
-       (conj stack (vec (concat [tag attrs] children)))))))
+         (recur remain tag (assoc attrs (prefix->ns-decl prefix) uri) children))
+       (conj stack (reduce conj [tag attrs] children))))))
 
 (defn extract-sax-attributes
   "Convert a SAX2 Attributes object into an SXML attribute map."
