@@ -1,6 +1,5 @@
 (ns sxml-jaxp.core
-  "Tools for using SXML-inspired XML representations with JAXP."
-  (:use [sxml-jaxp.util :only [any-of]]))
+  "Tools for using SXML-inspired XML representations with JAXP.")
 
 ;; Normalization/simplification
 ;;
