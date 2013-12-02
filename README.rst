@@ -181,7 +181,7 @@ by applying a function to some portion of it. These are ``alter-tag``,
 
 The second group is the *replace* group, ``replace-tag``, ``replace-attrs``,
 ``replace-children``, ``replace-ns-decls``. These are shorthand for altering an
-element by replacing it with a constant value: [2]_:
+element by replacing it with a constant value [2]_:
 
 .. code:: clojure
 
@@ -195,9 +195,9 @@ The third group is the special group, which contains ``update-attrs``,
 altering the attributes or XML namespace declarations by merging a map of new
 and updated values, like Clojure's ``merge`` function. [2]_
 
-``map-children`` is similar to ``alter-children`` except that the former maps
-the function across each child element in turn, while the latter calls the
-function once and passes the entire sequence of children as the parameter:
+``map-children`` is similar to ``alter-children`` except that it maps the
+function across each child element in turn, while ``alter-children`` calls the
+function once and passes the entire sequence of children as the parameter.
 
 .. code:: clojure
 
@@ -538,6 +538,10 @@ Limitations and future work
   way to express a processing instruction in SXML. Advice and suggestions
   welcome.
 
+* Add support for interoperating with the ``clojure.xml`` data format, and
+  investigate if there is anything interesting to add for traversing SXML with
+  ``clojure.walk``.
+
 * XPath support would be pretty awesome. This can probably be done by providing
   some help with feeding SXML into a ``Document``, along with a function to run
   XPath expressions against it and SXMLify the result.
@@ -550,6 +554,6 @@ Limitations and future work
 License
 =======
 
-``sxml-jaxp`` is Copyright (C) 2010 Kyle Schaffrick.
+``sxml-jaxp`` is Copyright (C) 2010-2013 Kyle Schaffrick.
 
 Distributed under the Eclipse Public License, the same as Clojure.
