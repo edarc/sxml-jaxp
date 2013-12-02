@@ -25,8 +25,7 @@
   "Take a sequence of symbols and return a map from keywords to symbols, where
   each symbol is keyed by a keyword of the same name."
   [syms]
-  (into {} (for [sym syms]
-             [(keyword (name sym)) sym])))
+  (into {} (map (juxt (comp keyword name) identity) syms)))
 
 (defmacro ^{:private true} def-pos-tag
   "Define a tag which accepts positional arguments and converts them into
