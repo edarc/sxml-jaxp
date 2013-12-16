@@ -56,7 +56,10 @@
   [prefixes attr-map]
   (let [attrs (AttributesImpl.)]
     (doseq [[attr-kw attr-val] attr-map]
-      (let [[q l u _] (qualify-name prefixes attr-kw)]
+      (let [; un-prefixed attributes are never in a namespace, so don't apply
+            ; the default namespace to them.
+            attr-prefixes (dissoc prefixes nil)
+            [q l u _] (qualify-name attr-prefixes attr-kw)]
         (.addAttribute attrs u l q "CDATA" (str attr-val))))
     attrs))
 
