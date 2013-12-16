@@ -1,7 +1,7 @@
 (ns sxml-jaxp.sax
   "Implements the details of parsing and emitting SXML via SAX."
   (:use [sxml-jaxp.core :only [normalize prefix->ns-decl update-ns-decls ns-decls
-                               ns-decl?]])
+                               ns-decl? strip-xmlns-attrs]])
   (:import
     (org.xml.sax SAXNotRecognizedException ContentHandler XMLReader InputSource
                  Attributes)
@@ -74,7 +74,7 @@
           ev (if (seq new-prefixes)
                (conj! ev [:prefix-map merged-prefixes])
                ev)
-          ev (conj! ev [:start-element tag attrs])
+          ev (conj! ev [:start-element tag (strip-xmlns-attrs attrs)])
           ev (binding [*xmlns* merged-prefixes]
                (reduce (partial reduce conj!) ev
                        (map sax-event-seq* children)))
@@ -150,12 +150,11 @@
   and the argument to .parse is ignored.
 
   Note 2: SAX mandates that XMLReader accept setFeature requests for two
-  features, in particular 'namespaces' and 'namespace-prefixes'. However, as
-  far as the author can determine, when each feature is on, the corresponding
-  behavior is compulsory, but when it is off it is optional. So this
-  implementation simply ignores the feature setting and always enables these
-  two behaviors, which should still be compliant. This may change in the future
-  if necessary."
+  features, in particular 'namespaces' and 'namespace-prefixes'.
+  Implementations are required to support a true value for 'namespaces' and a
+  false value for 'namespace-prefixes', so that is all that is implemented
+  here. In particular, 'namespace-prefixes' determines whether namespace prefix
+  declarations are included in the Attributes argument of startElement."
   [form]
   (let [content-handler (atom nil)
         entity-resolver (atom nil)
@@ -176,7 +175,7 @@
       (getFeature [_ feat]
         (condp = feat
           "http://xml.org/sax/features/namespaces" true
-          "http://xml.org/sax/features/namespace-prefixes" true
+          "http://xml.org/sax/features/namespace-prefixes" false
           (not-recognized!)))
       (setProperty [_ _ _] (not-recognized!))
       (getProperty [_ _] (not-recognized!))
